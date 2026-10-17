@@ -4,15 +4,15 @@ Registro personal de préstamos de dinero. Cada usuario se registra con su corre
 
 - **Stack:** Next.js 15 (App Router) + Supabase (Postgres + Auth) + Netlify.
 - **Por préstamo:** persona y contacto, monto, moneda, fecha, periodo (semanal, quincenal o mensual), tasa por periodo, fecha límite opcional, abonos y estado.
-- **Recordatorios:** dentro de la app. El resumen muestra los atrasados y los cortes de interés de los próximos 7 días. No hay envío por correo ni WhatsApp todavía.
+- **Recordatorios:** dentro de la app. El resumen muestra los atrasados y lo que vence en los próximos 7 días. No hay envío por correo ni WhatsApp todavía.
 
 ## Reglas de cálculo
 
 1. El préstamo se divide en periodos contados desde la fecha del préstamo. Por ejemplo, si es quincenal y empezó el 1 de enero, los cortes son el 15 de enero, el 29 de enero, etc.
-2. En cada fecha de corte se cobra **interés = tasa del periodo × capital pendiente**. El interés que no se paga queda como **interés pendiente**: no se suma al capital ni genera más interés (no hay interés sobre interés).
+2. Al **empezar** cada periodo se cobra **interés = tasa del periodo × capital pendiente**, y vence al terminar el periodo (fecha de corte). El interés que no se paga queda como **interés pendiente**: no se suma al capital ni genera más interés (no hay interés sobre interés).
 3. Cada periodo usa su propia tasa si la defines en el detalle del préstamo. Si no, usa la tasa por defecto. Puedes cambiar la tasa de periodos pasados o futuros, y todo se recalcula.
-4. Cada abono se aplica **primero al interés pendiente** y lo que sobra **al principal**. Un abono hecho el mismo día del corte se aplica después de cobrar el interés de ese corte.
-5. Estados calculados: `Pagado` (saldo 0, ya no genera interés), `Atrasado` (interés de un corte anterior a hoy sin pagar, o fecha límite vencida con saldo), `Activo`, y `Cancelado` (manual, deja de generar interés desde ese día).
+4. Cada abono se aplica **primero al interés pendiente** y lo que sobra **al principal**. Ejemplo: préstamo de 200 al 20%, abono de 50 dentro de la quincena → 40 a interés y 10 a capital (queda 190). Un abono hecho el día del corte pertenece al periodo que vence ese día.
+5. Estados calculados: `Pagado` (saldo 0, ya no genera interés), `Atrasado` (interés de un periodo ya vencido sin pagar, o fecha límite vencida con saldo), `Activo`, y `Cancelado` (manual, deja de generar interés desde ese día).
 
 El cálculo está en `lib/loans/calc.ts`. Los saldos no se guardan: se derivan de principal + tasas + abonos, así que corregir una tasa o borrar un abono recalcula todo de forma consistente.
 

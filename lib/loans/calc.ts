@@ -2,13 +2,16 @@
 //
 // Reglas:
 // - El préstamo se divide en periodos (semanal, quincenal o mensual) contados desde
-//   la fecha del préstamo. Al cierre de cada periodo (fecha de corte) se cobra
-//   interés = tasa del periodo × capital pendiente en ese momento.
+//   la fecha del préstamo. Al EMPEZAR cada periodo se cobra
+//   interés = tasa del periodo × capital pendiente en ese momento, y vence al terminar
+//   el periodo (fecha de corte).
 // - El interés no pagado queda como interés pendiente: no se suma al capital
 //   ni genera más interés.
 // - Cada periodo usa su propia tasa si se definió; si no, la tasa por defecto.
-// - Los abonos se aplican primero al interés pendiente y el resto al principal.
-// - Un abono en la misma fecha de corte se aplica después de cobrar el interés de ese corte.
+// - Los abonos se aplican primero al interés pendiente y el resto al principal, así que
+//   un abono dentro del periodo cubre primero el interés completo de ese periodo.
+// - Un abono hecho el mismo día del corte pertenece al periodo que vence ese día: se
+//   aplica antes de cobrar el interés del periodo siguiente.
 //
 // Todo el dinero se maneja internamente en centavos enteros; las fechas son "YYYY-MM-DD".
 
@@ -114,7 +117,8 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
   let interest = 0;
   let charged = 0;
   let paid = 0;
-  let accruedOnStop = 0;
+  // Interés de periodos que todavía no vencen (no puede estar atrasado).
+  let notYetDue = 0;
   const allocations: Allocation[] = [];
   const periods: PeriodRow[] = [];
 
@@ -137,14 +141,13 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
   let pi = 0;
   for (; n <= MAX_PERIODS; n++) {
     const row = periodRow(n);
-    while (pi < payments.length && payments[pi].paid_at < row.end) apply(payments[pi++]);
     // Sin capital pendiente ya no se genera interés.
-    if (row.end > stop || principal === 0) break;
+    if (row.start > stop || principal === 0) break;
     const base = principal;
     const amount = Math.round((base * row.rate) / 100);
     interest += amount;
     charged += amount;
-    if (row.end === today) accruedOnStop = amount;
+    if (row.end >= today) notYetDue += amount;
     periods.push({
       ...row,
       accrued: true,
@@ -152,13 +155,14 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
       interest: fromCents(amount),
       interestAccumulated: fromCents(charged),
     });
+    // Abonos de este periodo, incluido el día en que vence.
+    while (pi < payments.length && payments[pi].paid_at <= row.end) apply(payments[pi++]);
   }
   while (pi < payments.length) apply(payments[pi++]);
 
   const balance = principal + interest;
   // Los abonos cubren primero el interés más antiguo, así que lo pendiente es lo más reciente.
-  // El interés cobrado hoy todavía no está atrasado.
-  const overdueInterest = interest - Math.min(interest, accruedOnStop);
+  const overdueInterest = interest - Math.min(interest, notYetDue);
   const pastDue = loan.due_date !== null && loan.due_date < today && balance > 0;
 
   let status: LoanStatus = "active";
@@ -172,7 +176,8 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
     const rate = rateFor(n);
     next = {
       number: n,
-      due_date: cutDate(loan.start_date, loan.frequency, n),
+      // Fecha en que se cobra el interés del siguiente periodo (cuando vence el actual).
+      due_date: periodRow(n).start,
       rate,
       projectedInterest: fromCents(Math.round((principal * rate) / 100)),
     };

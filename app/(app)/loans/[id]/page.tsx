@@ -73,8 +73,9 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
 
       {summary.next && (
         <p className="card text-sm">
-          Próximo corte: <strong>{formatDate(summary.next.due_date)}</strong> (periodo {summary.next.number}, {summary.next.rate}%). Si no
-          hay más abonos se cobrarán <strong className="tabular-nums">{money(summary.next.projectedInterest)}</strong> de interés.
+          El <strong>{formatDate(summary.next.due_date)}</strong> vence el periodo actual y empieza el periodo {summary.next.number} (
+          {summary.next.rate}%). Si no hay más abonos a capital, se cobrarán{" "}
+          <strong className="tabular-nums">{money(summary.next.projectedInterest)}</strong> de interés.
         </p>
       )}
 
@@ -92,7 +93,7 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
                 <thead className="text-left text-muted">
                   <tr>
                     <th className="py-1 pr-2 font-medium">#</th>
-                    <th className="py-1 pr-2 font-medium">Corte</th>
+                    <th className="py-1 pr-2 font-medium">Periodo</th>
                     <th className="py-1 pr-2 font-medium">Tasa</th>
                     <th className="py-1 pr-2 font-medium">Capital</th>
                     <th className="py-1 font-medium">Interés</th>
@@ -103,8 +104,8 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
                     <tr key={p.number} className={p.accrued ? "" : "text-muted"}>
                       <td className="py-2 pr-2">{p.number}</td>
                       <td className="py-2 pr-2 whitespace-nowrap">
-                        {formatDate(p.end)}
-                        {!p.accrued && <span className="block text-xs">{p.end === summary.next?.due_date ? "próximo" : "futuro"}</span>}
+                        {formatDate(p.start)} – {formatDate(p.end)}
+                        {!p.accrued && <span className="block text-xs">{p.number === summary.next?.number ? "próximo" : "futuro"}</span>}
                       </td>
                       <td className="py-2 pr-2">
                         <RateForm key={`${p.number}-${p.rate}`} loanId={loan.id} periodNumber={p.number} rate={p.rate} />

@@ -47,7 +47,7 @@ export function LoanForm({
           due_date: null,
           cancelled_at: null,
         },
-        cutDate(values.start_date, values.period_frequency, PREVIEW_PERIODS),
+        cutDate(values.start_date, values.period_frequency, PREVIEW_PERIODS - 1),
       ).periods
     : [];
   const noun = PERIOD_NOUN[values.period_frequency];
@@ -135,12 +135,12 @@ export function LoanForm({
         <section className="card space-y-2">
           <p className="text-sm font-medium">Proyección si no recibe abonos</p>
           <p className="text-xs text-muted">
-            El interés se cobra al cierre de cada {noun} solo sobre el capital pendiente. El interés no pagado se acumula aparte y no genera más interés.
+            El interés de cada {noun} se cobra al empezar, solo sobre el capital pendiente, y vence al terminar. Cada abono cubre primero ese interés y lo que sobra baja el capital. El interés no pagado se acumula aparte y no genera más interés.
           </p>
           <table className="w-full text-sm tabular-nums">
             <thead className="text-left text-muted">
               <tr>
-                <th className="py-1 font-medium">Corte</th>
+                <th className="py-1 font-medium">Periodo</th>
                 <th className="py-1 font-medium">Capital</th>
                 <th className="py-1 font-medium">Interés</th>
                 <th className="py-1 font-medium">Interés acumulado</th>
@@ -149,7 +149,7 @@ export function LoanForm({
             <tbody>
               {projection.map((p) => (
                 <tr key={p.number}>
-                  <td className="py-0.5">{formatDate(p.end)}</td>
+                  <td className="py-0.5">{formatDate(p.start)} – {formatDate(p.end)}</td>
                   <td className="py-0.5">{formatMoney(p.base!, values.currency)}</td>
                   <td className="py-0.5">{formatMoney(p.interest!, values.currency)}</td>
                   <td className="py-0.5">{formatMoney(p.interestAccumulated!, values.currency)}</td>

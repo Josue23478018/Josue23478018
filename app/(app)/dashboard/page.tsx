@@ -80,16 +80,16 @@ export default async function DashboardPage() {
       </section>
 
       <section className="card">
-        <h2 className="font-semibold">Cortes de interés en los próximos {UPCOMING_DAYS} días ({upcoming.length})</h2>
+        <h2 className="font-semibold">Vencen en los próximos {UPCOMING_DAYS} días ({upcoming.length})</h2>
         {upcoming.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Ningún corte esta semana.</p>
+          <p className="mt-2 text-sm text-muted">Nada vence esta semana.</p>
         ) : (
           <ul className="divide-y divide-border">
             {upcoming.map((l) => (
               <LoanRow
                 key={l.id}
                 loan={l}
-                detail={`Corte ${formatDate(l.summary.next!.due_date)} · interés ${formatMoney(l.summary.next!.projectedInterest, l.currency)} (${l.summary.next!.rate}%) · saldo ${formatMoney(l.summary.balance, l.currency)}`}
+                detail={`Vence ${formatDate(l.summary.next!.due_date)} · interés pendiente ${formatMoney(l.summary.interestOutstanding, l.currency)} · saldo ${formatMoney(l.summary.balance, l.currency)}`}
               />
             ))}
           </ul>
