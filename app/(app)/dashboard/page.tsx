@@ -1,17 +1,10 @@
 import Link from "next/link";
 import { StatusBadge } from "@/components/ui";
-import { addDays } from "@/lib/loans/calc";
+import { addDays, totalsByCurrency } from "@/lib/loans/calc";
 import { listLoans, type LoanWithSummary } from "@/lib/loans/queries";
 import { formatDate, formatMoney, today } from "@/lib/format";
 
 const UPCOMING_DAYS = 7;
-
-// Suma montos agrupados por moneda (no se mezclan monedas distintas).
-function totalsByCurrency(loans: LoanWithSummary[], pick: (l: LoanWithSummary) => number) {
-  const totals = new Map<string, number>();
-  for (const l of loans) totals.set(l.currency, (totals.get(l.currency) ?? 0) + pick(l));
-  return [...totals.entries()].filter(([, v]) => v > 0);
-}
 
 function Stat({ label, values }: { label: string; values: [string, number][] }) {
   return (
@@ -63,10 +56,10 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Pendiente por cobrar" values={totalsByCurrency(open, (l) => l.summary.balance)} />
-        <Stat label="Interés pendiente" values={totalsByCurrency(open, (l) => l.summary.interestOutstanding)} />
-        <Stat label="Atrasado" values={totalsByCurrency(overdue, (l) => l.summary.overdueAmount)} />
-        <Stat label="Cobrado en total" values={totalsByCurrency(loans, (l) => l.summary.paid)} />
+        <Stat label="Pendiente por cobrar" values={totalsByCurrency(open, "balance")} />
+        <Stat label="Interés pendiente" values={totalsByCurrency(open, "interestOutstanding")} />
+        <Stat label="Atrasado" values={totalsByCurrency(overdue, "overdueAmount")} />
+        <Stat label="Cobrado en total" values={totalsByCurrency(loans, "paid")} />
       </div>
 
       <section className="card">

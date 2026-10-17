@@ -72,6 +72,8 @@ export type PeriodRow = {
   /** Capital pendiente sobre el que se calculó el interés. */
   base: number | null;
   interest: number | null;
+  /** Interés generado desde el inicio hasta este corte, inclusive (pagado o no). */
+  interestAccumulated: number | null;
 };
 
 export type Allocation = { id: string; toInterest: number; toPrincipal: number; excess: number };
@@ -93,7 +95,7 @@ export type LoanSummary = {
 export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriods?: number } = {}): LoanSummary {
   const rateOverrides = new Map(loan.rates.map((r) => [r.period_number, Number(r.rate)]));
   const rateFor = (n: number) => rateOverrides.get(n) ?? Number(loan.default_rate);
-  const periodRow = (n: number): Omit<PeriodRow, "accrued" | "base" | "interest"> => ({
+  const periodRow = (n: number): Omit<PeriodRow, "accrued" | "base" | "interest" | "interestAccumulated"> => ({
     number: n,
     start: n === 1 ? loan.start_date : cutDate(loan.start_date, loan.frequency, n - 1),
     end: cutDate(loan.start_date, loan.frequency, n),
@@ -143,7 +145,13 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
     interest += amount;
     charged += amount;
     if (row.end === today) accruedOnStop = amount;
-    periods.push({ ...row, accrued: true, base: fromCents(base), interest: fromCents(amount) });
+    periods.push({
+      ...row,
+      accrued: true,
+      base: fromCents(base),
+      interest: fromCents(amount),
+      interestAccumulated: fromCents(charged),
+    });
   }
   while (pi < payments.length) apply(payments[pi++]);
 
@@ -169,7 +177,7 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
       projectedInterest: fromCents(Math.round((principal * rate) / 100)),
     };
     for (let i = 0; i < (opts.futurePeriods ?? 0); i++) {
-      periods.push({ ...periodRow(n + i), accrued: false, base: null, interest: null });
+      periods.push({ ...periodRow(n + i), accrued: false, base: null, interest: null, interestAccumulated: null });
     }
   }
 
@@ -186,4 +194,17 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
     allocations,
     next,
   };
+}
+
+export type SummaryAmount = "balance" | "interestOutstanding" | "overdueAmount" | "paid";
+
+// Suma un monto de varios préstamos agrupado por moneda (nunca mezcla monedas).
+// Devuelve solo las monedas con total mayor que cero.
+export function totalsByCurrency(
+  loans: { currency: string; summary: LoanSummary }[],
+  field: SummaryAmount,
+): [string, number][] {
+  const totals = new Map<string, number>();
+  for (const l of loans) totals.set(l.currency, (totals.get(l.currency) ?? 0) + toCents(l.summary[field]));
+  return [...totals.entries()].filter(([, c]) => c > 0).map(([cur, c]) => [cur, fromCents(c)]);
 }

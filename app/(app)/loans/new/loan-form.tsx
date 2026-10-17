@@ -147,14 +147,12 @@ export function LoanForm({
               </tr>
             </thead>
             <tbody>
-              {projection.map((p, i) => (
+              {projection.map((p) => (
                 <tr key={p.number}>
                   <td className="py-0.5">{formatDate(p.end)}</td>
                   <td className="py-0.5">{formatMoney(p.base!, values.currency)}</td>
                   <td className="py-0.5">{formatMoney(p.interest!, values.currency)}</td>
-                  <td className="py-0.5">
-                    {formatMoney(projection.slice(0, i + 1).reduce((sum, q) => sum + q.interest!, 0), values.currency)}
-                  </td>
+                  <td className="py-0.5">{formatMoney(p.interestAccumulated!, values.currency)}</td>
                 </tr>
               ))}
             </tbody>

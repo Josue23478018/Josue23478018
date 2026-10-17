@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, addMonths, computeLoan, cutDate, type LoanInput } from "./calc";
+import { addDays, addMonths, computeLoan, cutDate, totalsByCurrency, type LoanInput } from "./calc";
 
 // 1000 al 10% quincenal desde el 1 de enero: cortes el 15 y el 29 de enero, 12 de febrero...
 const base: LoanInput = {
@@ -213,5 +213,42 @@ describe("estados", () => {
       [3, false],
       [4, false],
     ]);
+  });
+});
+
+describe("interés acumulado por periodo", () => {
+  it("suma el interés generado hasta cada corte, con tasas distintas", () => {
+    const s = computeLoan({ ...base, rates: [{ period_number: 2, rate: 20 }] }, "2026-02-12");
+    // 100 + 200 + 100
+    expect(s.periods.map((p) => p.interestAccumulated)).toEqual([100, 300, 400]);
+  });
+
+  it("incluye el interés ya pagado y baja cuando un abono reduce el capital", () => {
+    const s = computeLoan({ ...base, payments: [{ id: "a", amount: 600, paid_at: "2026-01-15" }] }, "2026-01-29");
+    // corte 1: 100; abono: 100 interés + 500 capital; corte 2: 10% de 500 = 50
+    expect(s.periods.map((p) => p.interestAccumulated)).toEqual([100, 150]);
+  });
+
+  it("es nulo en periodos futuros", () => {
+    const s = computeLoan(base, "2026-01-20", { futurePeriods: 1 });
+    expect(s.periods.map((p) => p.interestAccumulated)).toEqual([100, null]);
+  });
+});
+
+describe("totalsByCurrency", () => {
+  const loan = (currency: string, balance: number) => ({
+    currency,
+    summary: { ...computeLoan(base, "2026-01-01"), balance },
+  });
+
+  it("agrupa por moneda sin mezclar y sin errores de coma flotante", () => {
+    expect(totalsByCurrency([loan("USD", 0.1), loan("MXN", 50), loan("USD", 0.2)], "balance")).toEqual([
+      ["USD", 0.3],
+      ["MXN", 50],
+    ]);
+  });
+
+  it("omite monedas con total cero", () => {
+    expect(totalsByCurrency([loan("USD", 0)], "balance")).toEqual([]);
   });
 });

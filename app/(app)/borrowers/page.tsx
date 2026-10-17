@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listBorrowers, listLoans } from "@/lib/loans/queries";
+import { totalsByCurrency } from "@/lib/loans/calc";
 import { formatMoney } from "@/lib/format";
 
 export default async function BorrowersPage() {
@@ -21,8 +22,7 @@ export default async function BorrowersPage() {
           {borrowers.map((b) => {
             const own = loans.filter((l) => l.borrower.id === b.id);
             const open = own.filter((l) => l.summary.status === "active" || l.summary.status === "overdue");
-            const balances = new Map<string, number>();
-            for (const l of open) balances.set(l.currency, (balances.get(l.currency) ?? 0) + l.summary.balance);
+            const balances = totalsByCurrency(open, "balance");
             return (
               <li key={b.id}>
                 <Link href={`/borrowers/${b.id}`} className="card block hover:border-accent">
@@ -30,8 +30,8 @@ export default async function BorrowersPage() {
                   <p className="text-sm text-muted">{[b.phone, b.email].filter(Boolean).join(" · ") || "Sin contacto"}</p>
                   <p className="mt-2 text-sm">
                     {own.length} préstamo{own.length === 1 ? "" : "s"}
-                    {balances.size > 0 &&
-                      ` · debe ${[...balances].map(([cur, v]) => formatMoney(v, cur)).join(" + ")}`}
+                    {balances.length > 0 &&
+                      ` · debe ${balances.map(([cur, v]) => formatMoney(v, cur)).join(" + ")}`}
                   </p>
                 </Link>
               </li>
