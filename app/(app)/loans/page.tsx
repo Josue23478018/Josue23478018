@@ -40,9 +40,9 @@ export default async function LoansPage({ searchParams }: { searchParams: Promis
               <tr>
                 <th className="px-4 py-3 font-medium">Persona</th>
                 <th className="px-4 py-3 font-medium">Prestado</th>
-                <th className="px-4 py-3 font-medium">Pagado</th>
+                <th className="px-4 py-3 font-medium">Interés pendiente</th>
                 <th className="px-4 py-3 font-medium">Saldo</th>
-                <th className="px-4 py-3 font-medium">Próximo pago</th>
+                <th className="px-4 py-3 font-medium">Próximo corte</th>
                 <th className="px-4 py-3 font-medium">Estado</th>
               </tr>
             </thead>
@@ -55,9 +55,9 @@ export default async function LoansPage({ searchParams }: { searchParams: Promis
                     </Link>
                   </td>
                   <td className="px-4 py-3 tabular-nums">{formatMoney(l.principal, l.currency)}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatMoney(l.summary.paid, l.currency)}</td>
+                  <td className="px-4 py-3 tabular-nums">{formatMoney(l.summary.interestOutstanding, l.currency)}</td>
                   <td className="px-4 py-3 tabular-nums">{formatMoney(l.summary.balance, l.currency)}</td>
-                  <td className="px-4 py-3">{l.summary.nextDue ? formatDate(l.summary.nextDue.due_date) : "—"}</td>
+                  <td className="px-4 py-3">{l.summary.next ? formatDate(l.summary.next.due_date) : "—"}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={l.summary.status} />
                   </td>

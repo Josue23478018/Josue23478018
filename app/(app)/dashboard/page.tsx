@@ -50,8 +50,8 @@ export default async function DashboardPage() {
   const overdue = open.filter((l) => l.summary.status === "overdue");
   const limit = addDays(today(), UPCOMING_DAYS);
   const upcoming = open
-    .filter((l) => l.summary.status === "active" && l.summary.nextDue && l.summary.nextDue.due_date <= limit)
-    .sort((a, b) => a.summary.nextDue!.due_date.localeCompare(b.summary.nextDue!.due_date));
+    .filter((l) => l.summary.next && l.summary.next.due_date <= limit)
+    .sort((a, b) => a.summary.next!.due_date.localeCompare(b.summary.next!.due_date));
 
   return (
     <div className="space-y-8">
@@ -62,8 +62,9 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Pendiente por cobrar" values={totalsByCurrency(open, (l) => l.summary.balance)} />
+        <Stat label="Interés pendiente" values={totalsByCurrency(open, (l) => l.summary.interestOutstanding)} />
         <Stat label="Atrasado" values={totalsByCurrency(overdue, (l) => l.summary.overdueAmount)} />
         <Stat label="Cobrado en total" values={totalsByCurrency(loans, (l) => l.summary.paid)} />
       </div>
@@ -78,7 +79,7 @@ export default async function DashboardPage() {
               <LoanRow
                 key={l.id}
                 loan={l}
-                detail={`${formatMoney(l.summary.overdueAmount, l.currency)} vencido · desde ${formatDate(l.summary.nextDue!.due_date)}`}
+                detail={`${formatMoney(l.summary.overdueAmount, l.currency)} atrasado · saldo ${formatMoney(l.summary.balance, l.currency)}`}
               />
             ))}
           </ul>
@@ -86,16 +87,16 @@ export default async function DashboardPage() {
       </section>
 
       <section className="card">
-        <h2 className="font-semibold">Vencen en los próximos {UPCOMING_DAYS} días ({upcoming.length})</h2>
+        <h2 className="font-semibold">Cortes de interés en los próximos {UPCOMING_DAYS} días ({upcoming.length})</h2>
         {upcoming.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Nada por vencer esta semana.</p>
+          <p className="mt-2 text-sm text-muted">Ningún corte esta semana.</p>
         ) : (
           <ul className="divide-y divide-border">
             {upcoming.map((l) => (
               <LoanRow
                 key={l.id}
                 loan={l}
-                detail={`${formatMoney(l.summary.nextDue!.remaining, l.currency)} · ${formatDate(l.summary.nextDue!.due_date)}`}
+                detail={`Corte ${formatDate(l.summary.next!.due_date)} · interés ${formatMoney(l.summary.next!.projectedInterest, l.currency)} (${l.summary.next!.rate}%) · saldo ${formatMoney(l.summary.balance, l.currency)}`}
               />
             ))}
           </ul>

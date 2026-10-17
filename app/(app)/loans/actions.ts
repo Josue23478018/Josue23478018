@@ -4,12 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { buildSchedule, computeTotalDue, lastDueDate } from "@/lib/loans/calc";
 
 export type FormState = { error?: string; message?: string };
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida");
 const money = z.coerce.number().positive("El monto debe ser mayor que 0").max(999_999_999_999);
+const rate = z.coerce.number().min(0, "La tasa no puede ser negativa").max(1000, "Tasa demasiado alta");
 const optionalText = z.string().trim().max(500).optional();
 
 // Los campos vacíos del formulario se tratan como ausentes.
@@ -27,22 +27,16 @@ const loanSchema = z
     principal: money,
     currency: z.string().length(3),
     start_date: date,
-    interest_rate: z.coerce.number().min(0, "El interés no puede ser negativo").max(1000),
-    interest_period: z.enum(["total", "monthly"]),
-    repayment_type: z.enum(["single", "installments"]),
-    first_due_date: date,
-    installment_frequency: z.enum(["weekly", "biweekly", "monthly"]).optional(),
-    installment_count: z.coerce.number().int().min(1).max(360).optional(),
+    default_rate: rate,
+    period_frequency: z.enum(["weekly", "biweekly", "monthly"]),
+    due_date: date.optional(),
     notes: optionalText,
   })
-  .refine((v) => v.borrower_mode === "new" ? !!v.borrower_name : !!v.borrower_id, {
+  .refine((v) => (v.borrower_mode === "new" ? !!v.borrower_name : !!v.borrower_id), {
     message: "Indica la persona",
   })
-  .refine((v) => v.first_due_date >= v.start_date, {
-    message: "La fecha de pago no puede ser anterior a la fecha del préstamo",
-  })
-  .refine((v) => v.repayment_type === "single" || (v.installment_frequency && v.installment_count), {
-    message: "Indica la frecuencia y el número de cuotas",
+  .refine((v) => !v.due_date || v.due_date >= v.start_date, {
+    message: "La fecha límite no puede ser anterior a la fecha del préstamo",
   });
 
 export async function createLoan(_: FormState, formData: FormData): Promise<FormState> {
@@ -62,44 +56,49 @@ export async function createLoan(_: FormState, formData: FormData): Promise<Form
     borrowerId = data.id;
   }
 
-  const plan =
-    v.repayment_type === "single"
-      ? { type: "single" as const, firstDueDate: v.first_due_date }
-      : {
-          type: "installments" as const,
-          firstDueDate: v.first_due_date,
-          frequency: v.installment_frequency!,
-          count: v.installment_count!,
-        };
-  const total = computeTotalDue({
-    principal: v.principal,
-    rate: v.interest_rate,
-    period: v.interest_period,
-    startDate: v.start_date,
-    endDate: lastDueDate(plan),
-  });
-  const schedule = buildSchedule({ total, ...plan });
-
-  const { data: loanId, error } = await supabase.rpc("create_loan", {
-    loan: {
+  const { data, error } = await supabase
+    .from("loans")
+    .insert({
       borrower_id: borrowerId,
       principal: v.principal,
       currency: v.currency,
       start_date: v.start_date,
-      interest_rate: v.interest_rate,
-      interest_period: v.interest_period,
-      total_due: total,
-      repayment_type: v.repayment_type,
-      installment_frequency: plan.type === "installments" ? plan.frequency : null,
-      installment_count: plan.type === "installments" ? plan.count : null,
+      default_rate: v.default_rate,
+      period_frequency: v.period_frequency,
+      due_date: v.due_date ?? null,
       notes: v.notes ?? null,
-    },
-    schedule,
-  });
+    })
+    .select("id")
+    .single();
   if (error) return { error: "No se pudo guardar el préstamo." };
 
   revalidatePath("/", "layout");
-  redirect(`/loans/${loanId}`);
+  redirect(`/loans/${data.id}`);
+}
+
+const periodRateSchema = z.object({
+  loan_id: z.string().uuid(),
+  period_number: z.coerce.number().int().min(1),
+  rate,
+});
+
+// Fija la tasa de un periodo concreto (pasado o futuro); todo se recalcula a partir de ahí.
+export async function setPeriodRate(_: FormState, formData: FormData): Promise<FormState> {
+  const parsed = periodRateSchema.safeParse(formEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { error } = await supabase.from("period_rates").upsert(parsed.data, { onConflict: "loan_id,period_number" });
+  if (error) return { error: "No se pudo guardar la tasa." };
+  revalidatePath("/", "layout");
+  return { message: "Guardada." };
+}
+
+// Vuelve a usar la tasa por defecto del préstamo en ese periodo.
+export async function resetPeriodRate(formData: FormData) {
+  const { loan_id, period_number } = periodRateSchema.omit({ rate: true }).parse(formEntries(formData));
+  const supabase = await createClient();
+  await supabase.from("period_rates").delete().eq("loan_id", loan_id).eq("period_number", period_number);
+  revalidatePath("/", "layout");
 }
 
 const paymentSchema = z.object({
@@ -114,7 +113,12 @@ export async function addPayment(_: FormState, formData: FormData): Promise<Form
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const supabase = await createClient();
   const { error } = await supabase.from("payments").insert({ ...parsed.data, note: parsed.data.note ?? null });
-  if (error) return { error: "No se pudo registrar el pago." };
+  if (error) {
+    if (error.message.includes("anterior a la fecha del préstamo")) {
+      return { error: "El pago no puede ser anterior a la fecha del préstamo." };
+    }
+    return { error: "No se pudo registrar el pago." };
+  }
   revalidatePath("/", "layout");
   return { message: "Pago registrado." };
 }

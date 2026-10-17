@@ -3,13 +3,22 @@
 Registro personal de préstamos de dinero. Cada usuario se registra con su correo y solo ve sus propios datos (Row Level Security en Supabase).
 
 - **Stack:** Next.js 15 (App Router) + Supabase (Postgres + Auth) + Netlify.
-- **Por préstamo:** persona y contacto, monto, moneda, fecha, interés simple (total o mensual), pago único o cuotas (semanal, quincenal o mensual), pagos recibidos y estado.
-- **Estado calculado, no manual:** `Pagado` cuando los pagos cubren el total. `Atrasado` cuando hay una cuota vencida sin cubrir, con los pagos aplicados primero a la cuota más antigua. `Activo` en cualquier otro caso. `Cancelado` es el único estado que se marca a mano.
-- **Recordatorios:** dentro de la app. El resumen muestra los atrasados y lo que vence en los próximos 7 días. No hay envío por correo ni WhatsApp todavía.
+- **Por préstamo:** persona y contacto, monto, moneda, fecha, periodo (semanal, quincenal o mensual), tasa por periodo, fecha límite opcional, abonos y estado.
+- **Recordatorios:** dentro de la app. El resumen muestra los atrasados y los cortes de interés de los próximos 7 días. No hay envío por correo ni WhatsApp todavía.
+
+## Reglas de cálculo
+
+1. El préstamo se divide en periodos contados desde la fecha del préstamo. Por ejemplo, si es quincenal y empezó el 1 de enero, los cortes son el 15 de enero, el 29 de enero, etc.
+2. En cada fecha de corte se cobra **interés = tasa del periodo × saldo pendiente** (principal + interés no pagado). El interés que no se paga se suma al saldo: es **compuesto**.
+3. Cada periodo usa su propia tasa si la defines en el detalle del préstamo. Si no, usa la tasa por defecto. Puedes cambiar la tasa de periodos pasados o futuros, y todo se recalcula.
+4. Cada abono se aplica **primero al interés pendiente** y lo que sobra **al principal**. Un abono hecho el mismo día del corte se aplica después de cobrar el interés de ese corte.
+5. Estados calculados: `Pagado` (saldo 0, ya no genera interés), `Atrasado` (interés de un corte anterior a hoy sin pagar, o fecha límite vencida con saldo), `Activo`, y `Cancelado` (manual, deja de generar interés desde ese día).
+
+El cálculo está en `lib/loans/calc.ts`. Los saldos no se guardan: se derivan de principal + tasas + abonos, así que corregir una tasa o borrar un abono recalcula todo de forma consistente.
 
 ## 1. Supabase
 
-1. **SQL Editor → New query →** pega `supabase/migrations/0001_init.sql` → **Run** (una sola vez).
+1. **SQL Editor → New query →** pega y ejecuta **en orden** cada archivo de `supabase/migrations/` que aún no hayas ejecutado (`0001_init.sql`, luego `0002_compound_interest.sql`). Cada uno se ejecuta una sola vez.
 2. **Authentication → URL Configuration:**
    - *Site URL:* la URL de tu sitio en Netlify, por ejemplo `https://mis-prestamos.netlify.app`.
    - *Redirect URLs:* agrega `https://mis-prestamos.netlify.app/auth/callback` y `http://localhost:3000/auth/callback`.
@@ -35,14 +44,14 @@ La clave *publishable* puede estar en el navegador, porque la seguridad la da RL
 cp .env.example .env.local   # completa los valores
 npm install
 npm run dev                  # http://localhost:3000
-npm test                     # cálculos de interés, cuotas y estados
+npm test                     # cálculos de interés, abonos y estados
 npm run lint && npm run typecheck && npm run build
 ```
 
 ## Estructura
 
-- `supabase/migrations/0001_init.sql`: tablas, RLS y la función `create_loan`.
-- `lib/loans/calc.ts`: interés, calendario de cuotas y estado (funciones puras, con tests).
+- `supabase/migrations/`: tablas y RLS (`0002` cambia a interés compuesto y agrega `period_rates`).
+- `lib/loans/calc.ts`: interés compuesto, aplicación de abonos y estado (funciones puras, con tests).
 - `lib/loans/queries.ts`: lectura de datos (RLS filtra por usuario).
 - `app/(app)/...`: resumen, préstamos y personas. `app/(auth)/...`: login y registro.
 - `middleware.ts`: refresca la sesión y protege las rutas privadas.

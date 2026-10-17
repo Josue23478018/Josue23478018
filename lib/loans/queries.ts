@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { today } from "@/lib/format";
-import { summarizeLoan, type Frequency, type InterestPeriod, type LoanSummary, type RepaymentType } from "./calc";
+import { computeLoan, type Frequency, type LoanSummary } from "./calc";
 
 export type Borrower = {
   id: string;
@@ -10,36 +10,32 @@ export type Borrower = {
   notes: string | null;
 };
 
-export type Installment = { id: string; number: number; due_date: string; amount_due: number };
-export type Payment = { id: string; amount: number; paid_at: string; note: string | null };
+export type Payment = { id: string; amount: number; paid_at: string; note: string | null; created_at: string };
+export type PeriodRate = { period_number: number; rate: number };
 
 export type Loan = {
   id: string;
   principal: number;
   currency: string;
   start_date: string;
-  interest_rate: number;
-  interest_period: InterestPeriod;
-  total_due: number;
-  repayment_type: RepaymentType;
-  installment_frequency: Frequency | null;
-  installment_count: number | null;
+  default_rate: number;
+  period_frequency: Frequency;
+  due_date: string | null;
   cancelled_at: string | null;
   notes: string | null;
   created_at: string;
   borrower: Borrower;
-  installments: Installment[];
+  period_rates: PeriodRate[];
   payments: Payment[];
 };
 
 export type LoanWithSummary = Loan & { summary: LoanSummary };
 
 const LOAN_SELECT = `
-  id, principal, currency, start_date, interest_rate, interest_period, total_due,
-  repayment_type, installment_frequency, installment_count, cancelled_at, notes, created_at,
+  id, principal, currency, start_date, default_rate, period_frequency, due_date, cancelled_at, notes, created_at,
   borrower:borrowers!inner (id, name, phone, email, notes),
-  installments (id, number, due_date, amount_due),
-  payments (id, amount, paid_at, note)
+  period_rates (period_number, rate),
+  payments (id, amount, paid_at, note, created_at)
 `;
 
 // Postgres devuelve numeric como string; lo normalizamos a number.
@@ -48,19 +44,21 @@ function normalize(row: Record<string, unknown>): Loan {
   return {
     ...loan,
     principal: Number(loan.principal),
-    interest_rate: Number(loan.interest_rate),
-    total_due: Number(loan.total_due),
-    installments: loan.installments
-      .map((i) => ({ ...i, amount_due: Number(i.amount_due) }))
-      .sort((a, b) => a.number - b.number),
+    default_rate: Number(loan.default_rate),
+    period_rates: loan.period_rates.map((r) => ({ ...r, rate: Number(r.rate) })),
     payments: loan.payments
       .map((p) => ({ ...p, amount: Number(p.amount) }))
-      .sort((a, b) => b.paid_at.localeCompare(a.paid_at)),
+      .sort((a, b) => b.paid_at.localeCompare(a.paid_at) || b.created_at.localeCompare(a.created_at)),
   };
 }
 
-function withSummary(loan: Loan, day: string): LoanWithSummary {
-  return { ...loan, summary: summarizeLoan(loan, day) };
+function withSummary(loan: Loan, day: string, futurePeriods = 0): LoanWithSummary {
+  const summary = computeLoan(
+    { ...loan, frequency: loan.period_frequency, rates: loan.period_rates },
+    day,
+    { futurePeriods },
+  );
+  return { ...loan, summary };
 }
 
 // RLS limita los resultados a las filas del usuario autenticado.
@@ -72,11 +70,11 @@ export async function listLoans(): Promise<LoanWithSummary[]> {
   return data.map((row) => withSummary(normalize(row), day));
 }
 
-export async function getLoan(id: string): Promise<LoanWithSummary | null> {
+export async function getLoan(id: string, futurePeriods = 3): Promise<LoanWithSummary | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("loans").select(LOAN_SELECT).eq("id", id).maybeSingle();
   if (error) throw error;
-  return data ? withSummary(normalize(data), today()) : null;
+  return data ? withSummary(normalize(data), today(), futurePeriods) : null;
 }
 
 export async function listBorrowers(): Promise<Borrower[]> {
