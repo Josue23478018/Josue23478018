@@ -33,7 +33,7 @@ El cálculo está en `lib/loans/calc.ts`. Los saldos no se guardan: se derivan d
    |---|---|
    | `NEXT_PUBLIC_SUPABASE_URL` | `https://TU-PROYECTO.supabase.co` (sin `/rest/v1/`) |
    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | tu clave `sb_publishable_...` |
-   | `APP_TIMEZONE` | tu zona horaria, por ejemplo `America/Mexico_City`, `America/Bogota` o `America/Caracas` |
+   | `APP_TIMEZONE` | tu zona horaria IANA, por ejemplo `America/Panama` (si falta o es inválida se usa `America/Panama`) |
 4. **Deploys → Trigger deploy.** Cuando termine, copia la URL del sitio y úsala en el paso 1.2 de Supabase.
 
 La clave *publishable* puede estar en el navegador, porque la seguridad la da RLS. **Nunca** pongas la clave `service_role` / `secret` en estas variables.
