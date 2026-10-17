@@ -18,7 +18,7 @@ El cálculo está en `lib/loans/calc.ts`. Los saldos no se guardan: se derivan d
 
 ## 1. Supabase
 
-1. **SQL Editor → New query →** pega y ejecuta **en orden** cada archivo de `supabase/migrations/` que aún no hayas ejecutado (`0001_init.sql`, luego `0002_compound_interest.sql`). Cada uno se ejecuta una sola vez.
+1. **SQL Editor → New query →** pega y ejecuta **en orden** cada archivo de `supabase/migrations/` que aún no hayas ejecutado (`0001_init.sql`, `0002_compound_interest.sql`, luego `0003_grants.sql`). Cada uno se ejecuta una sola vez.
 2. **Authentication → URL Configuration:**
    - *Site URL:* la URL de tu sitio en Netlify, por ejemplo `https://mis-prestamos.netlify.app`.
    - *Redirect URLs:* agrega `https://mis-prestamos.netlify.app/auth/callback` y `http://localhost:3000/auth/callback`.
