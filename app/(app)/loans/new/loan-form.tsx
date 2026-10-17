@@ -135,24 +135,26 @@ export function LoanForm({
         <section className="card space-y-2">
           <p className="text-sm font-medium">Proyección si no recibe abonos</p>
           <p className="text-xs text-muted">
-            El interés se cobra al cierre de cada {noun} sobre el saldo pendiente; el interés no pagado se suma al saldo.
+            El interés se cobra al cierre de cada {noun} solo sobre el capital pendiente. El interés no pagado se acumula aparte y no genera más interés.
           </p>
           <table className="w-full text-sm tabular-nums">
             <thead className="text-left text-muted">
               <tr>
                 <th className="py-1 font-medium">Corte</th>
-                <th className="py-1 font-medium">Saldo base</th>
+                <th className="py-1 font-medium">Capital</th>
                 <th className="py-1 font-medium">Interés</th>
-                <th className="py-1 font-medium">Saldo después</th>
+                <th className="py-1 font-medium">Interés acumulado</th>
               </tr>
             </thead>
             <tbody>
-              {projection.map((p) => (
+              {projection.map((p, i) => (
                 <tr key={p.number}>
                   <td className="py-0.5">{formatDate(p.end)}</td>
                   <td className="py-0.5">{formatMoney(p.base!, values.currency)}</td>
                   <td className="py-0.5">{formatMoney(p.interest!, values.currency)}</td>
-                  <td className="py-0.5">{formatMoney(p.base! + p.interest!, values.currency)}</td>
+                  <td className="py-0.5">
+                    {formatMoney(projection.slice(0, i + 1).reduce((sum, q) => sum + q.interest!, 0), values.currency)}
+                  </td>
                 </tr>
               ))}
             </tbody>

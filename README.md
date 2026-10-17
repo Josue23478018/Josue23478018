@@ -9,7 +9,7 @@ Registro personal de préstamos de dinero. Cada usuario se registra con su corre
 ## Reglas de cálculo
 
 1. El préstamo se divide en periodos contados desde la fecha del préstamo. Por ejemplo, si es quincenal y empezó el 1 de enero, los cortes son el 15 de enero, el 29 de enero, etc.
-2. En cada fecha de corte se cobra **interés = tasa del periodo × saldo pendiente** (principal + interés no pagado). El interés que no se paga se suma al saldo: es **compuesto**.
+2. En cada fecha de corte se cobra **interés = tasa del periodo × capital pendiente**. El interés que no se paga queda como **interés pendiente**: no se suma al capital ni genera más interés (no hay interés sobre interés).
 3. Cada periodo usa su propia tasa si la defines en el detalle del préstamo. Si no, usa la tasa por defecto. Puedes cambiar la tasa de periodos pasados o futuros, y todo se recalcula.
 4. Cada abono se aplica **primero al interés pendiente** y lo que sobra **al principal**. Un abono hecho el mismo día del corte se aplica después de cobrar el interés de ese corte.
 5. Estados calculados: `Pagado` (saldo 0, ya no genera interés), `Atrasado` (interés de un corte anterior a hoy sin pagar, o fecha límite vencida con saldo), `Activo`, y `Cancelado` (manual, deja de generar interés desde ese día).
@@ -50,8 +50,8 @@ npm run lint && npm run typecheck && npm run build
 
 ## Estructura
 
-- `supabase/migrations/`: tablas y RLS (`0002` cambia a interés compuesto y agrega `period_rates`).
-- `lib/loans/calc.ts`: interés compuesto, aplicación de abonos y estado (funciones puras, con tests).
+- `supabase/migrations/`: tablas y RLS (`0002` cambia a interés por periodo con tasa editable y agrega `period_rates`).
+- `lib/loans/calc.ts`: interés por periodo, aplicación de abonos y estado (funciones puras, con tests).
 - `lib/loans/queries.ts`: lectura de datos (RLS filtra por usuario).
 - `app/(app)/...`: resumen, préstamos y personas. `app/(auth)/...`: login y registro.
 - `middleware.ts`: refresca la sesión y protege las rutas privadas.

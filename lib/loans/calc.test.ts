@@ -30,7 +30,7 @@ describe("fechas de corte", () => {
   });
 });
 
-describe("interés compuesto por periodo", () => {
+describe("interés por periodo sobre el capital pendiente", () => {
   it("antes del primer corte no hay interés", () => {
     const s = computeLoan(base, "2026-01-14");
     expect(s.interestCharged).toBe(0);
@@ -52,25 +52,33 @@ describe("interés compuesto por periodo", () => {
     expect(s.overdueAmount).toBe(100);
   });
 
-  it("el interés no pagado se capitaliza: el siguiente periodo cobra sobre principal + interés", () => {
+  it("el interés no pagado NO genera interés: cada periodo cobra solo sobre el capital", () => {
     const s = computeLoan(base, "2026-01-29");
-    // periodo 1: 10% de 1000 = 100; periodo 2: 10% de 1100 = 110
+    // periodo 1: 10% de 1000 = 100; periodo 2: 10% de 1000 = 100 (no de 1100)
     expect(s.periods.filter((p) => p.accrued).map((p) => [p.base, p.interest])).toEqual([
       [1000, 100],
-      [1100, 110],
+      [1000, 100],
     ]);
-    expect(s.balance).toBe(1210);
+    expect(s.principalOutstanding).toBe(1000);
+    expect(s.interestOutstanding).toBe(200);
+    expect(s.balance).toBe(1200);
+  });
+
+  it("el interés pendiente se acumula sin sumarse al capital durante muchos periodos", () => {
+    const s = computeLoan(base, "2026-03-12"); // 5 cortes
+    expect(s.interestCharged).toBe(500);
+    expect(s.principalOutstanding).toBe(1000);
   });
 
   it("cada periodo puede tener una tasa distinta", () => {
     const s = computeLoan({ ...base, rates: [{ period_number: 2, rate: 20 }] }, "2026-01-29");
-    // periodo 1: 10% de 1000 = 100; periodo 2: 20% de 1100 = 220
+    // periodo 1: 10% de 1000 = 100; periodo 2: 20% de 1000 = 200
     expect(s.periods.filter((p) => p.accrued).map((p) => [p.rate, p.interest])).toEqual([
       [10, 100],
-      [20, 220],
+      [20, 200],
     ]);
     expect(s.periods[1].overridden).toBe(true);
-    expect(s.balance).toBe(1320);
+    expect(s.balance).toBe(1300);
   });
 
   it("la tasa de un periodo futuro se usa en la proyección", () => {
@@ -137,6 +145,21 @@ describe("aplicación de abonos: primero interés, luego principal", () => {
     ]);
     expect(s.interestOutstanding).toBe(45);
     expect(s.status).toBe("overdue");
+  });
+
+  it("abono parcial que no cubre el interés no reduce el capital", () => {
+    const s = computeLoan({ ...base, payments: [{ id: "a", amount: 60, paid_at: "2026-01-16" }] }, "2026-01-29");
+    expect(s.allocations[0]).toEqual({ id: "a", toInterest: 60, toPrincipal: 0, excess: 0 });
+    // periodo 2 sigue sobre 1000; pendiente: 40 + 100
+    expect(s.periods[1]).toMatchObject({ base: 1000, interest: 100 });
+    expect(s.interestOutstanding).toBe(140);
+  });
+
+  it("capital en cero deja de generar interés aunque quede interés pendiente", () => {
+    // 01-10: paga 1000 de capital antes del primer corte
+    const s = computeLoan({ ...base, payments: [{ id: "a", amount: 1000, paid_at: "2026-01-10" }] }, "2026-06-01");
+    expect(s.interestCharged).toBe(0);
+    expect(s.status).toBe("paid");
   });
 
   it("pagado: deja de generar interés y el excedente se reporta", () => {

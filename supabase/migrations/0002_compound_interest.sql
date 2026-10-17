@@ -1,7 +1,8 @@
--- Cambio a interés compuesto por periodo con tasa editable por periodo.
+-- Cambio a interés por periodo con tasa editable por periodo.
 --
 -- Antes: interés simple fijo y calendario de cuotas precalculado (tabla installments).
--- Ahora: el préstamo genera interés al cierre de cada periodo sobre el saldo pendiente;
+-- Ahora: el préstamo genera interés al cierre de cada periodo sobre el capital pendiente
+-- (sin interés sobre interés);
 -- la tasa de cada periodo puede ser distinta (tabla period_rates). Nada se precalcula:
 -- el saldo se deriva de principal + tasas + pagos.
 --

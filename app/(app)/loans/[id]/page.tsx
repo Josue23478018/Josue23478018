@@ -65,7 +65,7 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
       </div>
 
       <p className="text-sm text-muted">
-        Prestado el {formatDate(loan.start_date)} · interés compuesto {FREQUENCY_LABEL[loan.period_frequency].toLowerCase()},{" "}
+        Prestado el {formatDate(loan.start_date)} · interés {FREQUENCY_LABEL[loan.period_frequency].toLowerCase()} sobre capital,{" "}
         {loan.default_rate}% por defecto
         {loan.due_date && <> · fecha límite {formatDate(loan.due_date)}</>}
         {loan.notes && <> · {loan.notes}</>}
@@ -94,7 +94,7 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
                     <th className="py-1 pr-2 font-medium">#</th>
                     <th className="py-1 pr-2 font-medium">Corte</th>
                     <th className="py-1 pr-2 font-medium">Tasa</th>
-                    <th className="py-1 pr-2 font-medium">Saldo base</th>
+                    <th className="py-1 pr-2 font-medium">Capital</th>
                     <th className="py-1 font-medium">Interés</th>
                   </tr>
                 </thead>

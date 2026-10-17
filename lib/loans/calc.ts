@@ -1,10 +1,11 @@
-// Cálculos de préstamos con interés compuesto por periodo.
+// Cálculos de préstamos con interés por periodo sobre el capital pendiente.
 //
 // Reglas:
 // - El préstamo se divide en periodos (semanal, quincenal o mensual) contados desde
 //   la fecha del préstamo. Al cierre de cada periodo (fecha de corte) se cobra
-//   interés = tasa del periodo × saldo pendiente en ese momento.
-// - El saldo pendiente incluye el interés no pagado (se capitaliza).
+//   interés = tasa del periodo × capital pendiente en ese momento.
+// - El interés no pagado queda como interés pendiente: no se suma al capital
+//   ni genera más interés.
 // - Cada periodo usa su propia tasa si se definió; si no, la tasa por defecto.
 // - Los abonos se aplican primero al interés pendiente y el resto al principal.
 // - Un abono en la misma fecha de corte se aplica después de cobrar el interés de ese corte.
@@ -68,7 +69,7 @@ export type PeriodRow = {
   rate: number;
   overridden: boolean;
   accrued: boolean;
-  /** Saldo (principal + interés pendiente) sobre el que se calculó el interés. */
+  /** Capital pendiente sobre el que se calculó el interés. */
   base: number | null;
   interest: number | null;
 };
@@ -135,8 +136,9 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
   for (; n <= MAX_PERIODS; n++) {
     const row = periodRow(n);
     while (pi < payments.length && payments[pi].paid_at < row.end) apply(payments[pi++]);
-    if (row.end > stop || principal + interest === 0) break;
-    const base = principal + interest;
+    // Sin capital pendiente ya no se genera interés.
+    if (row.end > stop || principal === 0) break;
+    const base = principal;
     const amount = Math.round((base * row.rate) / 100);
     interest += amount;
     charged += amount;
@@ -164,7 +166,7 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
       number: n,
       due_date: cutDate(loan.start_date, loan.frequency, n),
       rate,
-      projectedInterest: fromCents(Math.round((balance * rate) / 100)),
+      projectedInterest: fromCents(Math.round((principal * rate) / 100)),
     };
     for (let i = 0; i < (opts.futurePeriods ?? 0); i++) {
       periods.push({ ...periodRow(n + i), accrued: false, base: null, interest: null });
