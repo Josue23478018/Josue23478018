@@ -10,6 +10,7 @@ Reglas del proyecto:
 - Interfaz simple, en español, que se vea bien en celular.
 - Pantallas: inicio de sesión, lista de préstamos, crear préstamo, registrar abono, detalle con historial de abonos.
 - Muestra el total pagado, el saldo y el estado tal como los entrega lib/loans/queries.ts; no los recalcules en los componentes ni los guardes en el navegador.
+- La proyección del formulario de préstamo nuevo sí puede usar computeLoan, pero solo llamándola; no copies ni reescribas la fórmula en los componentes, y no guardes la proyección como si fuera el saldo o el estado de un préstamo real.
 - Usa solo la clave publicable de Supabase. Nunca uses la clave secreta en el frontend.
 - Nunca leas ni muestres los archivos .env*.
 - No agregues Storybook, WebSockets ni librerías que no se necesiten.
