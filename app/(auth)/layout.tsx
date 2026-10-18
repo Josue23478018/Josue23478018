@@ -11,7 +11,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
       <div className="card w-full max-w-sm space-y-6 sm:p-8">{children}</div>
-      <p className="max-w-sm text-center text-xs text-muted">Tus datos se guardan de forma privada en tu cuenta.</p>
+      <p className="max-w-sm text-center text-xs text-muted">Tus datos se guardan de forma privada en tu cuenta.
+        <span className="mt-1 block">Versión {process.env.NEXT_PUBLIC_APP_VERSION}</span>
+      </p>
     </main>
   );
 }

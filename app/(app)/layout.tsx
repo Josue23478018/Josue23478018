@@ -30,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
       <main id="contenido" className="mx-auto max-w-6xl px-4 pt-6 pb-28 sm:px-6 md:pt-8 md:pb-12">
         {children}
+        <p className="mt-12 text-center text-xs text-muted">Versión {process.env.NEXT_PUBLIC_APP_VERSION}</p>
       </main>
       <BottomNav />
     </div>
