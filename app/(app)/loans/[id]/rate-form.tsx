@@ -6,25 +6,35 @@ import { setPeriodRate } from "../actions";
 export function RateForm({ loanId, periodNumber, rate }: { loanId: string; periodNumber: number; rate: number }) {
   const [state, formAction, pending] = useActionState(setPeriodRate, {});
   return (
-    <form action={formAction} className="flex items-center gap-1">
+    <form action={formAction} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="loan_id" value={loanId} />
       <input type="hidden" name="period_number" value={periodNumber} />
-      <input
-        className="input w-20 px-2 py-1 tabular-nums"
-        name="rate"
-        type="number"
-        step="0.01"
-        min="0"
-        max="1000"
-        required
-        defaultValue={rate}
-        aria-label={`Tasa del periodo ${periodNumber}`}
-      />
-      <span className="text-muted">%</span>
-      <button className="text-xs text-accent underline disabled:opacity-50" disabled={pending}>
-        {pending ? "…" : "Guardar"}
+      <span className="relative inline-block w-28">
+        <input
+          className="input pr-8 text-right tabular-nums"
+          name="rate"
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          min="0"
+          max="1000"
+          required
+          defaultValue={rate}
+          aria-label={`Tasa del periodo ${periodNumber} (%)`}
+          aria-invalid={state.error ? true : undefined}
+        />
+        <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted">
+          %
+        </span>
+      </span>
+      <button className="btn-secondary px-3" disabled={pending} aria-label={`Guardar tasa del periodo ${periodNumber}`}>
+        {pending ? "Guardando…" : "Guardar"}
       </button>
-      {state.error && <span className="text-xs text-red-700 dark:text-red-400">{state.error}</span>}
+      {state.error && (
+        <span role="alert" className="w-full text-xs text-danger">
+          {state.error}
+        </span>
+      )}
     </form>
   );
 }

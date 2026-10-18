@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { StatusBadge } from "@/components/ui";
+import { BackLink, EmptyState, Metric, PageHeader, StatusBadge } from "@/components/ui";
 import { getLoan, toLoanInput } from "@/lib/loans/queries";
 import { FREQUENCY_LABEL, formatDate, formatMoney, today } from "@/lib/format";
 import { deleteLoan, deletePayment, resetPeriodRate, setCancelled } from "../actions";
 import { PaymentForm } from "./payment-form";
 import { RateForm } from "./rate-form";
+
+const PERIOD_COLS = "md:grid-cols-[3rem_minmax(0,1.3fr)_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)]";
 
 export default async function LoanPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,177 +20,332 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
   const day = today();
   const allocations = new Map(summary.allocations.map((a) => [a.id, a]));
   const periods = [...summary.periods].reverse();
+  const contact = [loan.borrower.phone, loan.borrower.email].filter(Boolean).join(" · ") || "Sin contacto";
+  const canPay = !loan.cancelled_at && summary.balance > 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link href="/loans" className="text-sm text-muted hover:underline">
-            ← Préstamos
-          </Link>
-          <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold">
-            {loan.borrower.name} <StatusBadge status={summary.status} />
-          </h1>
-          <p className="text-sm text-muted">
-            {[loan.borrower.phone, loan.borrower.email].filter(Boolean).join(" · ") || "Sin contacto"} ·{" "}
-            <Link href={`/borrowers/${loan.borrower.id}`} className="underline">
-              editar persona
+    <div className="space-y-8">
+      <PageHeader
+        back={<BackLink href="/loans">Préstamos</BackLink>}
+        title={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="min-w-0 break-words">{loan.borrower.name}</span>
+            <StatusBadge status={summary.status} />
+          </span>
+        }
+        description={
+          <>
+            {contact} ·{" "}
+            <Link href={`/borrowers/${loan.borrower.id}`} className="link">
+              Editar persona
             </Link>
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <form action={setCancelled}>
-            <input type="hidden" name="id" value={loan.id} />
-            <input type="hidden" name="cancel" value={loan.cancelled_at ? "false" : "true"} />
-            <button className="btn-secondary">{loan.cancelled_at ? "Reactivar" : "Marcar cancelado"}</button>
-          </form>
-          <form action={deleteLoan}>
-            <input type="hidden" name="id" value={loan.id} />
-            <button className="btn-secondary text-red-700 dark:text-red-400">Eliminar</button>
-          </form>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <>
+            <form action={setCancelled} className="flex-1 sm:flex-none">
+              <input type="hidden" name="id" value={loan.id} />
+              <input type="hidden" name="cancel" value={loan.cancelled_at ? "false" : "true"} />
+              <button className="btn-secondary w-full">{loan.cancelled_at ? "Reactivar" : "Marcar cancelado"}</button>
+            </form>
+            <form action={deleteLoan} className="flex-1 sm:flex-none">
+              <input type="hidden" name="id" value={loan.id} />
+              <button className="btn-danger w-full">Eliminar</button>
+            </form>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        {[
-          ["Principal pendiente", money(summary.principalOutstanding), `de ${money(loan.principal)} prestado`],
-          ["Interés pendiente", money(summary.interestOutstanding), `${money(summary.interestCharged)} generado en total`],
-          ["Saldo total", money(summary.balance), summary.overdueAmount > 0 ? `${money(summary.overdueAmount)} atrasado` : ""],
-          ["Pagado", money(summary.paid), ""],
-        ].map(([label, value, sub]) => (
-          <div key={label} className="card">
-            <p className="text-sm text-muted">{label}</p>
-            <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
-            {sub && <p className="text-xs text-muted">{sub}</p>}
-          </div>
-        ))}
-      </div>
-
-      <p className="text-sm text-muted">
-        Prestado el {formatDate(loan.start_date)} · interés {FREQUENCY_LABEL[loan.period_frequency].toLowerCase()} sobre capital,{" "}
-        {loan.default_rate}% por defecto
-        {loan.due_date && <> · fecha límite {formatDate(loan.due_date)}</>}
-        {loan.notes && <> · {loan.notes}</>}
-      </p>
-
-      {summary.next && (
-        <p className="card text-sm">
-          El <strong>{formatDate(summary.next.due_date)}</strong> vence el periodo actual y empieza el periodo {summary.next.number} (
-          {summary.next.rate}%). Si no hay más abonos a capital, se cobrarán{" "}
-          <strong className="tabular-nums">{money(summary.next.projectedInterest)}</strong> de interés.
+      {summary.overdueAmount > 0 && (
+        <p role="status" className="flex gap-3 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <span aria-hidden="true" className="font-bold">
+            !
+          </span>
+          <span>
+            Este préstamo tiene <strong className="tabular-nums">{money(summary.overdueAmount)}</strong> atrasado.
+          </span>
         </p>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="card space-y-3">
-          <h2 className="font-semibold">Periodos</h2>
-          <p className="text-xs text-muted">
-            Puedes cambiar la tasa de cualquier periodo, pasado o futuro; los saldos se recalculan automáticamente.
-          </p>
-          {periods.length === 0 ? (
-            <p className="text-sm text-muted">Sin periodos.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-muted">
-                  <tr>
-                    <th className="py-1 pr-2 font-medium">#</th>
-                    <th className="py-1 pr-2 font-medium">Periodo</th>
-                    <th className="py-1 pr-2 font-medium">Tasa</th>
-                    <th className="py-1 pr-2 font-medium">Capital</th>
-                    <th className="py-1 font-medium">Interés</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {periods.map((p) => (
-                    <tr key={p.number} className={p.accrued ? "" : "text-muted"}>
-                      <td className="py-2 pr-2">{p.number}</td>
-                      <td className="py-2 pr-2 whitespace-nowrap">
-                        {formatDate(p.start)} – {formatDate(p.end)}
-                        {!p.accrued && <span className="block text-xs">{p.number === summary.next?.number ? "próximo" : "futuro"}</span>}
-                      </td>
-                      <td className="py-2 pr-2">
-                        <RateForm key={`${p.number}-${p.rate}`} loanId={loan.id} periodNumber={p.number} rate={p.rate} />
-                        {p.overridden && (
-                          <form action={resetPeriodRate}>
-                            <input type="hidden" name="loan_id" value={loan.id} />
-                            <input type="hidden" name="period_number" value={p.number} />
-                            <button className="text-xs text-muted underline">usar {loan.default_rate}% por defecto</button>
-                          </form>
-                        )}
-                      </td>
-                      <td className="py-2 pr-2 tabular-nums">{p.base !== null ? money(p.base) : "—"}</td>
-                      <td className="py-2 tabular-nums">{p.interest !== null ? money(p.interest) : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <section aria-labelledby="resumen" className="space-y-3">
+        <h2 id="resumen" className="sr-only">
+          Resumen del préstamo
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <Metric label="Capital pendiente" value={money(summary.principalOutstanding)} sub={`de ${money(loan.principal)} prestado`} />
+          <Metric label="Interés pendiente" value={money(summary.interestOutstanding)} sub={`${money(summary.interestCharged)} generado en total`} />
+          <Metric
+            label="Total adeudado"
+            value={money(summary.balance)}
+            tone={summary.status === "overdue" ? "danger" : "primary"}
+            sub="Capital + interés pendiente"
+          />
+          <Metric label="Pagado" value={money(summary.paid)} sub={`${loan.payments.length} ${loan.payments.length === 1 ? "abono" : "abonos"}`} />
+        </div>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        {summary.next ? (
+          <div className="card border-accent/40 bg-accent/5">
+            <p className="eyebrow">Próximo corte</p>
+            <p className="mt-2 text-sm">
+              El <strong>{formatDate(summary.next.due_date)}</strong> vence el periodo actual y empieza el periodo {summary.next.number} al{" "}
+              <strong className="tabular-nums">{summary.next.rate}%</strong>. Si no hay más abonos a capital, se cobrarán
+            </p>
+            <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{money(summary.next.projectedInterest)}</p>
+            <p className="text-xs text-muted">de interés en ese periodo</p>
+          </div>
+        ) : (
+          <div className="card">
+            <p className="eyebrow">Próximo corte</p>
+            <p className="mt-2 text-sm text-muted">No hay cortes pendientes para este préstamo.</p>
+          </div>
+        )}
+        <dl className="card grid grid-cols-2 gap-x-4 gap-y-3 text-sm lg:grid-cols-1">
+          <div>
+            <dt className="text-xs text-muted">Fecha del préstamo</dt>
+            <dd className="font-medium">{formatDate(loan.start_date)}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Interés</dt>
+            <dd className="font-medium">
+              {FREQUENCY_LABEL[loan.period_frequency]}, <span className="tabular-nums">{loan.default_rate}%</span> por defecto
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Fecha límite</dt>
+            <dd className="font-medium">{loan.due_date ? formatDate(loan.due_date) : "Sin fecha límite"}</dd>
+          </div>
+          {loan.notes && (
+            <div className="col-span-2 lg:col-span-1">
+              <dt className="text-xs text-muted">Notas</dt>
+              <dd className="break-words">{loan.notes}</dd>
             </div>
           )}
-        </section>
+        </dl>
+      </div>
 
-        <section className="card space-y-4">
-          <h2 className="font-semibold">Abonos</h2>
-          <p className="text-xs text-muted">Cada abono cubre primero el interés pendiente; el resto reduce el principal.</p>
-          {!loan.cancelled_at && summary.balance > 0 && (
-            <PaymentForm
-              loanId={loan.id}
-              loan={toLoanInput(loan)}
-              currency={loan.currency}
-              today={day}
-              suggested={summary.interestOutstanding || undefined}
-            />
-          )}
-          {loan.payments.length === 0 ? (
-            <p className="text-sm text-muted">Sin abonos registrados.</p>
-          ) : (
-            <ul className="divide-y divide-border text-sm">
+      <section aria-labelledby="abono" className="card space-y-4">
+        <div className="space-y-1">
+          <h2 id="abono" className="h2">
+            Registrar abono
+          </h2>
+          <p className="text-sm text-muted">Cada abono cubre primero el interés pendiente; el resto reduce el capital.</p>
+        </div>
+        {canPay ? (
+          <PaymentForm
+            loanId={loan.id}
+            loan={toLoanInput(loan)}
+            currency={loan.currency}
+            today={day}
+            suggested={summary.interestOutstanding || undefined}
+          />
+        ) : (
+          <EmptyState
+            compact
+            title={loan.cancelled_at ? "Préstamo cancelado" : "Préstamo pagado por completo"}
+            description={
+              loan.cancelled_at ? "Reactívalo para volver a registrar abonos." : "No queda saldo pendiente, así que no hace falta registrar más abonos."
+            }
+          />
+        )}
+      </section>
+
+      <section aria-labelledby="historial" className="card space-y-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 id="historial" className="h2">
+            Historial de abonos
+          </h2>
+          <span className="text-sm text-muted">{loan.payments.length}</span>
+        </div>
+        {loan.payments.length === 0 ? (
+          <EmptyState compact title="Sin abonos registrados" description="Los abonos que registres aparecerán aquí con su desglose." />
+        ) : (
+          <>
+            {/* Celular: tarjetas */}
+            <ul className="space-y-3 lg:hidden">
               {loan.payments.map((p) => {
                 const a = allocations.get(p.id);
                 return (
-                  <li key={p.id} className="flex items-center justify-between gap-3 py-2">
-                    <div>
-                      <p className="font-medium tabular-nums">
-                        {money(p.amount)} <span className="font-normal text-muted">· {formatDate(p.paid_at)}</span>
-                      </p>
-                      {a && (
-                        <dl className="mt-1 grid grid-cols-2 gap-x-4 text-xs text-muted tabular-nums sm:grid-cols-3">
+                  <li key={p.id} className="panel space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-lg font-semibold tracking-tight tabular-nums">{money(p.amount)}</p>
+                        <p className="text-sm text-muted">{formatDate(p.paid_at)}</p>
+                      </div>
+                      <form action={deletePayment}>
+                        <input type="hidden" name="id" value={p.id} />
+                        <button className="btn-danger btn-sm min-h-11" aria-label={`Borrar abono de ${money(p.amount)} del ${formatDate(p.paid_at)}`}>
+                          Borrar
+                        </button>
+                      </form>
+                    </div>
+                    {a && (
+                      <>
+                        <dl className="grid grid-cols-2 gap-2 text-sm">
                           {(
                             [
-                              ["Monto", a.amount],
                               ["A interés", a.toInterest],
                               ["A capital", a.toPrincipal],
                               ["Interés pendiente", a.interestOutstanding],
                               ["Capital pendiente", a.principalOutstanding],
-                              ["Total adeudado", a.totalOwed],
                             ] as const
                           ).map(([label, value]) => (
-                            <div key={label} className="flex justify-between gap-2">
-                              <dt>{label}</dt>
-                              <dd>{money(value)}</dd>
+                            <div key={label} className="rounded-lg bg-surface px-3 py-2">
+                              <dt className="text-xs text-muted">{label}</dt>
+                              <dd className="num text-left font-medium">{money(value)}</dd>
                             </div>
                           ))}
-                          {a.excess > 0 && (
-                            <div className="flex justify-between gap-2 text-red-700 dark:text-red-400">
-                              <dt>De más</dt>
-                              <dd>{money(a.excess)}</dd>
-                            </div>
-                          )}
                         </dl>
-                      )}
-                      {p.note && <p className="text-xs text-muted">{p.note}</p>}
-                    </div>
-                    <form action={deletePayment}>
-                      <input type="hidden" name="id" value={p.id} />
-                      <button className="text-xs text-muted underline hover:text-red-700">Borrar</button>
-                    </form>
+                        <div className="flex items-baseline justify-between gap-3 border-t border-border pt-3 text-sm">
+                          <span className="text-muted">Total adeudado tras el abono</span>
+                          <span className="num font-semibold">{money(a.totalOwed)}</span>
+                        </div>
+                        {a.excess > 0 && (
+                          <p className="flex items-baseline justify-between gap-3 text-sm font-medium text-danger">
+                            <span>! Pagado de más</span>
+                            <span className="num">{money(a.excess)}</span>
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {p.note && <p className="text-sm break-words text-muted">{p.note}</p>}
                   </li>
                 );
               })}
             </ul>
-          )}
-        </section>
-      </div>
+
+            {/* Escritorio: tabla */}
+            <div className="-mx-6 hidden overflow-x-auto lg:block">
+              <table className="table">
+                <caption className="sr-only">Historial de abonos con su desglose</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Fecha</th>
+                    <th scope="col" className="num">
+                      Monto
+                    </th>
+                    <th scope="col" className="num">
+                      A interés
+                    </th>
+                    <th scope="col" className="num">
+                      A capital
+                    </th>
+                    <th scope="col" className="num">
+                      Interés pend.
+                    </th>
+                    <th scope="col" className="num">
+                      Capital pend.
+                    </th>
+                    <th scope="col" className="num">
+                      Total adeudado
+                    </th>
+                    <th scope="col">
+                      <span className="sr-only">Acciones</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loan.payments.map((p) => {
+                    const a = allocations.get(p.id);
+                    return (
+                      <tr key={p.id}>
+                        <td className="whitespace-nowrap">
+                          {formatDate(p.paid_at)}
+                          {p.note && <span className="block max-w-48 truncate text-xs text-muted" title={p.note}>{p.note}</span>}
+                          {a && a.excess > 0 && (
+                            <span className="block text-xs font-medium text-danger">! {money(a.excess)} de más</span>
+                          )}
+                        </td>
+                        <td className="num font-semibold">{money(p.amount)}</td>
+                        <td className="num">{a ? money(a.toInterest) : "—"}</td>
+                        <td className="num">{a ? money(a.toPrincipal) : "—"}</td>
+                        <td className="num text-muted">{a ? money(a.interestOutstanding) : "—"}</td>
+                        <td className="num text-muted">{a ? money(a.principalOutstanding) : "—"}</td>
+                        <td className="num font-medium">{a ? money(a.totalOwed) : "—"}</td>
+                        <td className="text-right">
+                          <form action={deletePayment}>
+                            <input type="hidden" name="id" value={p.id} />
+                            <button className="btn-danger btn-sm" aria-label={`Borrar abono de ${money(p.amount)} del ${formatDate(p.paid_at)}`}>
+                              Borrar
+                            </button>
+                          </form>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section aria-labelledby="periodos" className="card space-y-4">
+        <div className="space-y-1">
+          <h2 id="periodos" className="h2">
+            Periodos y tasas
+          </h2>
+          <p className="text-sm text-muted">Puedes cambiar la tasa de cualquier periodo, pasado o futuro; los saldos se recalculan automáticamente.</p>
+        </div>
+        {periods.length === 0 ? (
+          <EmptyState compact title="Sin periodos" description="Los periodos aparecerán cuando empiece a correr el interés." />
+        ) : (
+          <div>
+            <div aria-hidden="true" className={`hidden gap-4 border-b border-border pb-2 text-xs font-medium tracking-wide text-muted uppercase md:grid ${PERIOD_COLS}`}>
+              <span>#</span>
+              <span>Periodo</span>
+              <span>Tasa</span>
+              <span className="text-right">Capital</span>
+              <span className="text-right">Interés</span>
+            </div>
+            <ul className="divide-y divide-border">
+              {periods.map((p) => {
+                const tag = p.accrued ? null : p.number === summary.next?.number ? "Próximo" : "Futuro";
+                return (
+                  <li key={p.number} className={`grid grid-cols-2 gap-x-4 gap-y-3 py-4 md:items-center ${PERIOD_COLS}`}>
+                    <div className="col-span-2 flex items-center justify-between gap-3 md:contents">
+                      <span className="text-sm font-semibold tabular-nums">
+                        <span className="md:sr-only">Periodo </span>
+                        {p.number}
+                      </span>
+                      <span className={`text-sm ${p.accrued ? "" : "text-muted"}`}>
+                        <span className="whitespace-nowrap">{formatDate(p.start)}</span> – <span className="whitespace-nowrap">{formatDate(p.end)}</span>
+                        {tag && (
+                          <span className="ml-2 inline-block rounded-full border border-border bg-subtle px-2 py-0.5 text-xs font-medium text-muted">
+                            {tag}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="col-span-2 space-y-1 md:col-span-1">
+                      <RateForm key={`${p.number}-${p.rate}`} loanId={loan.id} periodNumber={p.number} rate={p.rate} />
+                      {p.overridden && (
+                        <form action={resetPeriodRate} className="flex flex-wrap items-center gap-2">
+                          <input type="hidden" name="loan_id" value={loan.id} />
+                          <input type="hidden" name="period_number" value={p.number} />
+                          <span className="text-xs font-medium text-accent">Tasa personalizada</span>
+                          <button className="inline-flex min-h-11 items-center text-xs text-muted underline hover:text-foreground md:min-h-0">
+                            Usar {loan.default_rate}% por defecto
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                    <div className={p.accrued ? "" : "text-muted"}>
+                      <span className="block text-xs text-muted md:sr-only">Capital</span>
+                      <span className="num block text-left text-sm md:text-right">{p.base !== null ? money(p.base) : "—"}</span>
+                    </div>
+                    <div className={`text-right ${p.accrued ? "" : "text-muted"}`}>
+                      <span className="block text-xs text-muted md:sr-only">Interés</span>
+                      <span className="num block text-sm font-medium">{p.interest !== null ? money(p.interest) : "—"}</span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

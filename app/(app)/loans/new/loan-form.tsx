@@ -52,21 +52,43 @@ export function LoanForm({
     : [];
   const noun = PERIOD_NOUN[values.period_frequency];
 
+  const segment = (active: boolean) =>
+    `flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${active ? "bg-surface text-foreground shadow-sm" : "text-muted hover:text-foreground"}`;
+
   return (
     <form action={formAction} className="space-y-6">
-      <section className="card space-y-4">
-        <h2 className="font-semibold">Persona</h2>
+      <section aria-labelledby="persona" className="card space-y-4">
+        <h2 id="persona" className="h2">
+          Persona
+        </h2>
         {borrowers.length > 0 && (
-          <div className="flex gap-4 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="radio" name="borrower_mode" value="existing" checked={borrowerMode === "existing"} onChange={() => setBorrowerMode("existing")} />
-              Existente
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" name="borrower_mode" value="new" checked={borrowerMode === "new"} onChange={() => setBorrowerMode("new")} />
-              Nueva
-            </label>
-          </div>
+          <fieldset>
+            <legend className="sr-only">¿A quién le prestas?</legend>
+            <div className="flex gap-1 rounded-lg border border-border bg-subtle p-1">
+              <label className={segment(borrowerMode === "existing")}>
+                <input
+                  type="radio"
+                  className="sr-only"
+                  name="borrower_mode"
+                  value="existing"
+                  checked={borrowerMode === "existing"}
+                  onChange={() => setBorrowerMode("existing")}
+                />
+                Persona existente
+              </label>
+              <label className={segment(borrowerMode === "new")}>
+                <input
+                  type="radio"
+                  className="sr-only"
+                  name="borrower_mode"
+                  value="new"
+                  checked={borrowerMode === "new"}
+                  onChange={() => setBorrowerMode("new")}
+                />
+                Persona nueva
+              </label>
+            </div>
+          </fieldset>
         )}
         {borrowers.length === 0 && <input type="hidden" name="borrower_mode" value="new" />}
         {borrowerMode === "existing" ? (
@@ -80,25 +102,40 @@ export function LoanForm({
             </select>
           </Field>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Nombre">
-              <input className="input" name="borrower_name" required maxLength={200} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Field label="Nombre">
+                <input className="input" name="borrower_name" required maxLength={200} autoComplete="off" />
+              </Field>
+            </div>
+            <Field label="Teléfono / WhatsApp" hint="Opcional">
+              <input className="input" name="borrower_phone" type="tel" inputMode="tel" maxLength={50} />
             </Field>
-            <Field label="Teléfono / WhatsApp">
-              <input className="input" name="borrower_phone" type="tel" maxLength={50} />
-            </Field>
-            <Field label="Correo">
+            <Field label="Correo" hint="Opcional">
               <input className="input" name="borrower_email" type="email" maxLength={200} />
             </Field>
           </div>
         )}
       </section>
 
-      <section className="card space-y-4">
-        <h2 className="font-semibold">Préstamo</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Monto prestado">
-            <input className="input" name="principal" type="number" step="0.01" min="0.01" required value={values.principal} onChange={set("principal")} />
+      <section aria-labelledby="prestamo" className="card space-y-4">
+        <h2 id="prestamo" className="h2">
+          Préstamo
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Monto prestado" suffix={values.currency}>
+            <input
+              className="input pr-16 tabular-nums"
+              name="principal"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0.01"
+              required
+              placeholder="0.00"
+              value={values.principal}
+              onChange={set("principal")}
+            />
           </Field>
           <Field label="Moneda">
             <select className="input" name="currency" value={values.currency} onChange={set("currency")}>
@@ -119,51 +156,79 @@ export function LoanForm({
               ))}
             </select>
           </Field>
-          <Field label={`Tasa por ${noun} (%)`} hint="Podrás cambiarla en cada periodo desde el detalle">
-            <input className="input" name="default_rate" type="number" step="0.01" min="0" max="1000" required value={values.default_rate} onChange={set("default_rate")} />
+          <Field label={`Tasa por ${noun}`} suffix="%" hint="Podrás cambiarla en cada periodo desde el detalle">
+            <input
+              className="input pr-10 tabular-nums"
+              name="default_rate"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              max="1000"
+              required
+              value={values.default_rate}
+              onChange={set("default_rate")}
+            />
           </Field>
           <Field label="Fecha límite (opcional)" hint="Si pasa y queda saldo, se marca atrasado">
             <input className="input" name="due_date" type="date" min={values.start_date} />
           </Field>
         </div>
-        <Field label="Notas">
+        <Field label="Notas" hint="Opcional">
           <textarea className="input" name="notes" rows={2} maxLength={500} />
         </Field>
       </section>
 
       {projection.length > 0 && (
-        <section className="card space-y-2">
-          <p className="text-sm font-medium">Proyección si no recibe abonos</p>
-          <p className="text-xs text-muted">
-            El interés de cada {noun} se cobra al empezar, solo sobre el capital pendiente, y vence al terminar. Cada abono cubre primero ese interés y lo que sobra baja el capital. El interés no pagado se acumula aparte y no genera más interés.
-          </p>
-          <table className="w-full text-sm tabular-nums">
-            <thead className="text-left text-muted">
-              <tr>
-                <th className="py-1 font-medium">Periodo</th>
-                <th className="py-1 font-medium">Capital</th>
-                <th className="py-1 font-medium">Interés</th>
-                <th className="py-1 font-medium">Interés acumulado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {projection.map((p) => (
-                <tr key={p.number}>
-                  <td className="py-0.5">{formatDate(p.start)} – {formatDate(p.end)}</td>
-                  <td className="py-0.5">{formatMoney(p.base!, values.currency)}</td>
-                  <td className="py-0.5">{formatMoney(p.interest!, values.currency)}</td>
-                  <td className="py-0.5">{formatMoney(p.interestAccumulated!, values.currency)}</td>
+        <section aria-labelledby="proyeccion" className="card space-y-3">
+          <div className="space-y-1">
+            <h2 id="proyeccion" className="h2">
+              Proyección si no recibe abonos
+            </h2>
+            <p className="text-sm text-muted">
+              El interés de cada {noun} se cobra al empezar, solo sobre el capital pendiente, y vence al terminar. Cada abono cubre primero ese interés y lo que sobra baja el capital. El interés no pagado se acumula aparte y no genera más interés.
+            </p>
+          </div>
+          <div className="-mx-4 overflow-x-auto sm:-mx-6">
+            <table className="table">
+              <caption className="sr-only">Proyección de los primeros periodos</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Periodo</th>
+                  <th scope="col" className="num">
+                    Capital
+                  </th>
+                  <th scope="col" className="num">
+                    Interés
+                  </th>
+                  <th scope="col" className="num">
+                    Interés acumulado
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {projection.map((p) => (
+                  <tr key={p.number}>
+                    <td className="whitespace-nowrap">
+                      {formatDate(p.start)} – {formatDate(p.end)}
+                    </td>
+                    <td className="num">{formatMoney(p.base!, values.currency)}</td>
+                    <td className="num">{formatMoney(p.interest!, values.currency)}</td>
+                    <td className="num font-medium">{formatMoney(p.interestAccumulated!, values.currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
-      <FormMessage error={state.error} />
-      <button className="btn" disabled={pending}>
-        {pending ? "Guardando…" : "Guardar préstamo"}
-      </button>
+      <div className="space-y-3">
+        <FormMessage error={state.error} />
+        <button className="btn w-full sm:w-auto" disabled={pending}>
+          {pending ? "Guardando…" : "Guardar préstamo"}
+        </button>
+      </div>
     </form>
   );
 }

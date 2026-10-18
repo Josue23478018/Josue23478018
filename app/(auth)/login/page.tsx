@@ -6,14 +6,18 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { error } = await searchParams;
   return (
     <>
+      <div className="space-y-1">
+        <h1 className="h2">Inicia sesión</h1>
+        <p className="text-sm text-muted">Entra con tu correo y contraseña.</p>
+      </div>
       <AuthForm
         action={signIn}
         submitLabel="Entrar"
         initialError={error === "confirmacion" ? "El enlace de confirmación no es válido o expiró." : undefined}
       />
-      <p className="text-center text-sm text-muted">
+      <p className="border-t border-border pt-4 text-center text-sm text-muted">
         ¿No tienes cuenta?{" "}
-        <Link href="/signup" className="text-accent underline">
+        <Link href="/signup" className="link">
           Regístrate
         </Link>
       </p>

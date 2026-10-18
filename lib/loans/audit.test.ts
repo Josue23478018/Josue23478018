@@ -202,7 +202,10 @@ describe("préstamo cancelado", () => {
     expect(s.interestOutstanding).toBe(200);
     expect(s.status).toBe("cancelled");
   });
-  // Pendiente de decisión del usuario: ¿se cobra la quincena que empieza el mismo día de la
-  // cancelación? Hoy se cobra (300). Si la respuesta es "no", este caso debe dar 200.
-  it.todo("cancelado justo el día que empieza Q3 (01-29): ¿se cobra Q3?");
+  // Decisión del usuario: la quincena que empieza el mismo día de la cancelación sí se cobra.
+  it("cancelado justo el día que empieza Q3 (01-29): Q3 sí se cobra (300)", () => {
+    const s = computeLoan(loan({ cancelled_at: "2026-01-29" }), "2026-03-01");
+    expect(s.interestOutstanding).toBe(300);
+    expect(s.status).toBe("cancelled");
+  });
 });

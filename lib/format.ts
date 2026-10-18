@@ -17,9 +17,10 @@ export function resolveTimezone(value: string | undefined): string {
 // Zona horaria usada para decidir qué es "hoy" (y por tanto qué está atrasado).
 export const TIMEZONE = resolveTimezone(process.env.APP_TIMEZONE);
 
-export function today(): string {
+// El día cambia a las 12:00 a. m. en la zona de la app (no en UTC).
+export function today(now: Date = new Date()): string {
   // en-CA formatea como YYYY-MM-DD
-  return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(now);
 }
 
 // Fecha local (YYYY-MM-DD en la zona de la app) de un instante guardado en UTC.
@@ -28,7 +29,8 @@ export function localDate(iso: string): string {
 }
 
 export function formatMoney(amount: number, currency: string): string {
-  return new Intl.NumberFormat("es", { style: "currency", currency }).format(amount);
+  // Formato de Panamá: punto decimal y coma de miles, siempre 2 decimales (USD 1,135.50).
+  return new Intl.NumberFormat("es-PA", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
 }
 
 export function formatDate(date: string): string {

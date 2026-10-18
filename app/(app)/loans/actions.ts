@@ -120,6 +120,8 @@ export async function addPayment(_: FormState, formData: FormData): Promise<Form
   const loan = await getLoan(loan_id, 0);
   if (!loan) return { error: "Préstamo no encontrado." };
   if (paid_at < loan.start_date) return { error: "El pago no puede ser anterior a la fecha del préstamo." };
+  if (paid_at > today()) return { error: "El pago no puede tener fecha futura." };
+  if (loan.cancelled_at) return { error: "El préstamo está cancelado. Reactívalo para registrar abonos." };
   const preview = previewPayment(toLoanInput(loan), { amount, paid_at }, today(), next_rate);
   if (!preview.valid) {
     return {

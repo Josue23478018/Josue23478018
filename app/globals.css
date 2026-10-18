@@ -1,55 +1,165 @@
 @import "tailwindcss";
 
+/*
+ * Sistema visual de Mis Préstamos
+ *
+ * Paleta limitada: 6 neutros + 1 acento + 3 semánticos (info, éxito, peligro).
+ * Todos los pares texto/fondo cumplen WCAG AA (>= 4.5:1) en claro y oscuro.
+ *
+ * Escala de espaciado (múltiplos de 4px): 1 (4) · 2 (8) · 3 (12) · 4 (16) · 6 (24) · 8 (32) · 12 (48).
+ * Escala tipográfica: xs 12 · sm 14 · base 16 · lg 18 · xl 20 · 2xl 24 · 3xl 30.
+ */
+
 :root {
-  --background: #f7f7f5;
+  --background: #f4f6f8;
   --surface: #ffffff;
-  --foreground: #1c1c1a;
-  --muted: #6b6b66;
-  --border: #e4e4e0;
-  --accent: #1f6f5c;
+  --subtle: #eef1f4;
+  --foreground: #0f1b2d;
+  --muted: #566070;
+  --border: #dbe0e6;
+
+  --accent: #0f6b58;
+  --accent-strong: #0b5546;
   --accent-foreground: #ffffff;
+
+  --info: #1d4ed8;
+  --success: #067647;
+  --danger: #b42318;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #141413;
-    --surface: #1e1e1c;
-    --foreground: #ededea;
-    --muted: #a0a09a;
-    --border: #33332f;
-    --accent: #4fb39a;
-    --accent-foreground: #0d1f1a;
+    --background: #0d1117;
+    --surface: #161b22;
+    --subtle: #1d242d;
+    --foreground: #e6e9ee;
+    --muted: #9aa4b2;
+    --border: #2b333e;
+
+    --accent: #3fb59a;
+    --accent-strong: #5fc9ad;
+    --accent-foreground: #04201a;
+
+    --info: #8db4ff;
+    --success: #5fd39b;
+    --danger: #ff8f84;
   }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
   --color-accent-foreground: var(--accent-foreground);
+  --color-info: var(--info);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+html {
+  color-scheme: light dark;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+  line-height: 1.5;
 }
 
-.input {
-  @apply w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20;
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-.btn {
-  @apply inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90 disabled:opacity-50;
+@layer components {
+  /* Tipografía */
+  .h1 {
+    @apply text-2xl font-semibold tracking-tight text-foreground sm:text-3xl;
+  }
+  .h2 {
+    @apply text-lg font-semibold tracking-tight text-foreground;
+  }
+  .eyebrow {
+    @apply text-xs font-medium tracking-wide text-muted uppercase;
+  }
+  .num {
+    @apply text-right whitespace-nowrap tabular-nums;
+  }
+  .link {
+    @apply font-medium text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent;
+  }
+
+  /* Superficies */
+  .card {
+    @apply rounded-xl border border-border bg-surface p-4 shadow-[0_1px_2px_rgb(15_27_45/0.04)] sm:p-6;
+  }
+  .panel {
+    @apply rounded-lg border border-border bg-subtle p-4;
+  }
+
+  /* Controles */
+  .input {
+    @apply block min-h-11 w-full rounded-lg border border-border bg-surface px-3 py-2 text-base text-foreground placeholder:text-muted/80 sm:text-sm;
+    @apply transition-colors outline-none focus:border-accent focus:ring-2 focus:ring-accent/25;
+    @apply disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-accent-foreground;
+    @apply transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-accent;
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-foreground;
+    @apply transition-colors hover:bg-subtle disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-danger/40 bg-surface px-4 text-sm font-medium text-danger;
+    @apply transition-colors hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-sm {
+    @apply min-h-9 px-3 text-xs;
+  }
+
+  /* Tablas */
+  .table {
+    @apply w-full border-collapse text-sm;
+  }
+  .table th {
+    @apply border-b border-border bg-subtle px-4 py-3 text-left text-xs font-medium tracking-wide whitespace-nowrap text-muted uppercase;
+  }
+  .table td {
+    @apply border-b border-border px-4 py-3 align-middle;
+  }
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .table th.num,
+  .table td.num {
+    @apply text-right;
+  }
+
+  /* Carga */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-subtle;
+  }
 }
 
-.btn-secondary {
-  @apply inline-flex items-center justify-center rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium hover:bg-background disabled:opacity-50;
-}
-
-.card {
-  @apply rounded-lg border border-border bg-surface p-5;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
