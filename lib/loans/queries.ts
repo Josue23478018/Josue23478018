@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { today } from "@/lib/format";
+import { localDate, today } from "@/lib/format";
 import { computeLoan, type Frequency, type LoanInput, type LoanSummary } from "./calc";
 
 export type Borrower = {
@@ -62,7 +62,8 @@ export function toLoanInput(loan: Loan): LoanInput {
     rates: loan.period_rates.map((r) => ({ period_number: r.period_number, rate: r.rate })),
     payments: loan.payments.map((p) => ({ id: p.id, amount: p.amount, paid_at: p.paid_at, created_at: p.created_at })),
     due_date: loan.due_date,
-    cancelled_at: loan.cancelled_at,
+    // Se compara con "hoy" en la zona de la app, así que se pasa como fecha local.
+    cancelled_at: loan.cancelled_at ? localDate(loan.cancelled_at) : null,
   };
 }
 

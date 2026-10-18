@@ -20,6 +20,16 @@ export type LoanStatus = "active" | "paid" | "overdue" | "cancelled";
 
 const toCents = (n: number) => Math.round(n * 100);
 const fromCents = (c: number) => c / 100;
+
+// Interés en centavos = capital (centavos) × tasa (%) / 100, redondeado a centavos con
+// "mitad hacia arriba". Se calcula con enteros exactos: la tasa admite hasta 3 decimales
+// (numeric(7,3)), así que se lleva a milésimas; multiplicar en coma flotante daría, por
+// ejemplo, 25000 × 1.13 = 28249.999… y perdería un centavo.
+export function interestCents(baseCents: number, rate: number): number {
+  const rateMilli = BigInt(Math.round(rate * 1000));
+  const scaled = BigInt(baseCents) * rateMilli; // centavos × 100 000
+  return Number((scaled * BigInt(2) + BigInt(100000)) / BigInt(200000));
+}
 const MAX_PERIODS = 5000;
 
 function parseDate(d: string): [number, number, number] {
@@ -177,7 +187,7 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
     // Sin capital pendiente ya no se genera interés.
     if (row.start > stop || principal === 0) break;
     const base = principal;
-    const amount = Math.round((base * row.rate) / 100);
+    const amount = interestCents(base, row.rate);
     interest += amount;
     charged += amount;
     if (row.end >= today) notYetDue += amount;
@@ -212,7 +222,7 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
       // Fecha en que se cobra el interés del siguiente periodo (cuando vence el actual).
       due_date: periodRow(n).start,
       rate,
-      projectedInterest: fromCents(Math.round((principal * rate) / 100)),
+      projectedInterest: fromCents(interestCents(principal, rate)),
     };
     for (let i = 0; i < (opts.futurePeriods ?? 0); i++) {
       periods.push({ ...periodRow(n + i), accrued: false, base: null, interest: null, interestAccumulated: null });
@@ -317,7 +327,7 @@ export function previewPayment(
       start: nextNumber === 1 ? loan.start_date : cutDate(loan.start_date, loan.frequency, nextNumber - 1),
       rate,
       configuredRate,
-      projectedInterest: fromCents(Math.round((toCents(allocation.principalOutstanding) * rate) / 100)),
+      projectedInterest: fromCents(interestCents(toCents(allocation.principalOutstanding), rate)),
     },
   };
 }

@@ -22,6 +22,11 @@ export function today(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(new Date());
 }
 
+// Fecha local (YYYY-MM-DD en la zona de la app) de un instante guardado en UTC.
+export function localDate(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(new Date(iso));
+}
+
 export function formatMoney(amount: number, currency: string): string {
   return new Intl.NumberFormat("es", { style: "currency", currency }).format(amount);
 }

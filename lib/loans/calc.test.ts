@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  interestCents,
   addMonths,
   computeLoan,
   cutDate,
@@ -415,5 +416,25 @@ describe("totalsByCurrency", () => {
 
   it("omite monedas con total cero", () => {
     expect(totalsByCurrency([loan("USD", 0)], "balance")).toEqual([]);
+  });
+});
+
+describe("interestCents: aritmética exacta y redondeo mitad hacia arriba", () => {
+  it("medio centavo sube (casos que en coma flotante bajaban)", () => {
+    expect(interestCents(25000, 1.13)).toBe(283); // 2.825 → 2.83
+    expect(interestCents(6500, 2.3)).toBe(150); // 1.495 → 1.50
+    expect(interestCents(50000, 1.001)).toBe(501); // 5.005 → 5.01
+    expect(interestCents(300, 0.5)).toBe(2); // 0.015 → 0.02
+  });
+
+  it("redondeo normal", () => {
+    expect(interestCents(33333, 12.5)).toBe(4167); // 41.66625 → 41.67
+    expect(interestCents(123456, 7.25)).toBe(8951); // 89.5056 → 89.51
+    expect(interestCents(100000, 10)).toBe(10000);
+    expect(interestCents(100000, 0)).toBe(0);
+  });
+
+  it("montos grandes sin perder precisión", () => {
+    expect(interestCents(99999999999999, 999.999)).toBe(999998999999990); // 999.999% de 999 999 999 999.99
   });
 });
