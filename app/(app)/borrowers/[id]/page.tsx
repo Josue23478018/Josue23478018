@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ConfirmButton } from "@/components/confirm-button";
 import { BackLink, EmptyState, FormMessage, PageHeader, StatusBadge } from "@/components/ui";
 import { listBorrowers, listLoans } from "@/lib/loans/queries";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -79,7 +80,9 @@ export default async function BorrowerPage({
           <p className="text-sm text-muted">Solo se puede eliminar a una persona sin préstamos.</p>
           <form action={deleteBorrower}>
             <input type="hidden" name="id" value={id} />
-            <button className="btn-danger w-full sm:w-auto">Eliminar persona</button>
+            <ConfirmButton className="btn-danger w-full sm:w-auto" message={`¿Eliminar a ${borrower.name}? Esta acción no se puede deshacer.`}>
+              Eliminar persona
+            </ConfirmButton>
           </form>
         </section>
       )}

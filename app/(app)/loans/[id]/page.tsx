@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ConfirmButton } from "@/components/confirm-button";
 import { BackLink, EmptyState, Metric, PageHeader, StatusBadge } from "@/components/ui";
 import { getLoan, toLoanInput } from "@/lib/loans/queries";
 import { FREQUENCY_LABEL, formatDate, formatMoney, today } from "@/lib/format";
@@ -50,7 +51,12 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
             </form>
             <form action={deleteLoan} className="flex-1 sm:flex-none">
               <input type="hidden" name="id" value={loan.id} />
-              <button className="btn-danger w-full">Eliminar</button>
+              <ConfirmButton
+                className="btn-danger w-full"
+                message={`¿Eliminar el préstamo de ${loan.borrower.name}? Se borrarán también sus abonos y tasas. Esta acción no se puede deshacer.`}
+              >
+                Eliminar
+              </ConfirmButton>
             </form>
           </>
         }
@@ -175,9 +181,13 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
                       </div>
                       <form action={deletePayment}>
                         <input type="hidden" name="id" value={p.id} />
-                        <button className="btn-danger btn-sm min-h-11" aria-label={`Borrar abono de ${money(p.amount)} del ${formatDate(p.paid_at)}`}>
+                        <ConfirmButton
+                          className="btn-danger btn-sm min-h-11"
+                          aria-label={`Borrar abono de ${money(p.amount)} del ${formatDate(p.paid_at)}`}
+                          message={`¿Borrar el abono de ${money(p.amount)} del ${formatDate(p.paid_at)}? Los saldos se recalcularán.`}
+                        >
                           Borrar
-                        </button>
+                        </ConfirmButton>
                       </form>
                     </div>
                     {a && (
@@ -266,9 +276,13 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
                         <td className="text-right">
                           <form action={deletePayment}>
                             <input type="hidden" name="id" value={p.id} />
-                            <button className="btn-danger btn-sm" aria-label={`Borrar abono de ${money(p.amount)} del ${formatDate(p.paid_at)}`}>
+                            <ConfirmButton
+                              className="btn-danger btn-sm"
+                              aria-label={`Borrar abono de ${money(p.amount)} del ${formatDate(p.paid_at)}`}
+                              message={`¿Borrar el abono de ${money(p.amount)} del ${formatDate(p.paid_at)}? Los saldos se recalcularán.`}
+                            >
                               Borrar
-                            </button>
+                            </ConfirmButton>
                           </form>
                         </td>
                       </tr>
