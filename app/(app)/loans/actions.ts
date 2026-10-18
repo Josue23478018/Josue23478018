@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { formatMoney, today } from "@/lib/format";
+import { previewPayment } from "@/lib/loans/calc";
+import { getLoan, toLoanInput } from "@/lib/loans/queries";
 
 export type FormState = { error?: string; message?: string };
 
@@ -106,18 +109,41 @@ const paymentSchema = z.object({
   amount: money,
   paid_at: date,
   note: optionalText,
+  next_rate: rate.optional(),
 });
 
 export async function addPayment(_: FormState, formData: FormData): Promise<FormState> {
   const parsed = paymentSchema.safeParse(formEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { loan_id, amount, paid_at, note, next_rate } = parsed.data;
+
+  const loan = await getLoan(loan_id, 0);
+  if (!loan) return { error: "Préstamo no encontrado." };
+  if (paid_at < loan.start_date) return { error: "El pago no puede ser anterior a la fecha del préstamo." };
+  const preview = previewPayment(toLoanInput(loan), { amount, paid_at }, today(), next_rate);
+  if (!preview.valid) {
+    return {
+      error: `El abono supera la deuda total a esa fecha. Máximo: ${formatMoney(preview.maxAmount, loan.currency)}`,
+    };
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase.from("payments").insert({ ...parsed.data, note: parsed.data.note ?? null });
+  const { error } = await supabase.from("payments").insert({ loan_id, amount, paid_at, note: note ?? null });
   if (error) {
     if (error.message.includes("anterior a la fecha del préstamo")) {
       return { error: "El pago no puede ser anterior a la fecha del préstamo." };
     }
     return { error: "No se pudo registrar el pago." };
+  }
+  // Solo se guarda si la tasa elegida difiere de la que ya tendría ese periodo.
+  if (next_rate !== undefined && next_rate !== preview.next.configuredRate) {
+    const { error: rateError } = await supabase
+      .from("period_rates")
+      .upsert({ loan_id, period_number: preview.next.number, rate: next_rate }, { onConflict: "loan_id,period_number" });
+    if (rateError) {
+      revalidatePath("/", "layout");
+      return { error: "Pago registrado, pero no se pudo guardar la tasa de la siguiente quincena." };
+    }
   }
   revalidatePath("/", "layout");
   return { message: "Pago registrado." };

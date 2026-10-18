@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { today } from "@/lib/format";
-import { computeLoan, type Frequency, type LoanSummary } from "./calc";
+import { computeLoan, type Frequency, type LoanInput, type LoanSummary } from "./calc";
 
 export type Borrower = {
   id: string;
@@ -52,12 +52,22 @@ function normalize(row: Record<string, unknown>): Loan {
   };
 }
 
+// Datos de entrada de computeLoan/previewPayment; objeto plano, serializable para pasarlo a un componente cliente.
+export function toLoanInput(loan: Loan): LoanInput {
+  return {
+    principal: loan.principal,
+    start_date: loan.start_date,
+    frequency: loan.period_frequency,
+    default_rate: loan.default_rate,
+    rates: loan.period_rates.map((r) => ({ period_number: r.period_number, rate: r.rate })),
+    payments: loan.payments.map((p) => ({ id: p.id, amount: p.amount, paid_at: p.paid_at, created_at: p.created_at })),
+    due_date: loan.due_date,
+    cancelled_at: loan.cancelled_at,
+  };
+}
+
 function withSummary(loan: Loan, day: string, futurePeriods = 0): LoanWithSummary {
-  const summary = computeLoan(
-    { ...loan, frequency: loan.period_frequency, rates: loan.period_rates },
-    day,
-    { futurePeriods },
-  );
+  const summary = computeLoan(toLoanInput(loan), day, { futurePeriods });
   return { ...loan, summary };
 }
 

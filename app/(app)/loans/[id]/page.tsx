@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/ui";
-import { getLoan } from "@/lib/loans/queries";
+import { getLoan, toLoanInput } from "@/lib/loans/queries";
 import { FREQUENCY_LABEL, formatDate, formatMoney, today } from "@/lib/format";
 import { deleteLoan, deletePayment, resetPeriodRate, setCancelled } from "../actions";
 import { PaymentForm } from "./payment-form";
@@ -131,7 +131,13 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
           <h2 className="font-semibold">Abonos</h2>
           <p className="text-xs text-muted">Cada abono cubre primero el interés pendiente; el resto reduce el principal.</p>
           {!loan.cancelled_at && summary.balance > 0 && (
-            <PaymentForm loanId={loan.id} today={day} minDate={loan.start_date} suggested={summary.interestOutstanding || undefined} />
+            <PaymentForm
+              loanId={loan.id}
+              loan={toLoanInput(loan)}
+              currency={loan.currency}
+              today={day}
+              suggested={summary.interestOutstanding || undefined}
+            />
           )}
           {loan.payments.length === 0 ? (
             <p className="text-sm text-muted">Sin abonos registrados.</p>
@@ -146,10 +152,29 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
                         {money(p.amount)} <span className="font-normal text-muted">· {formatDate(p.paid_at)}</span>
                       </p>
                       {a && (
-                        <p className="text-xs text-muted tabular-nums">
-                          {money(a.toInterest)} a interés · {money(a.toPrincipal)} a principal
-                          {a.excess > 0 && <> · {money(a.excess)} de más</>}
-                        </p>
+                        <dl className="mt-1 grid grid-cols-2 gap-x-4 text-xs text-muted tabular-nums sm:grid-cols-3">
+                          {(
+                            [
+                              ["Monto", a.amount],
+                              ["A interés", a.toInterest],
+                              ["A capital", a.toPrincipal],
+                              ["Interés pendiente", a.interestOutstanding],
+                              ["Capital pendiente", a.principalOutstanding],
+                              ["Total adeudado", a.totalOwed],
+                            ] as const
+                          ).map(([label, value]) => (
+                            <div key={label} className="flex justify-between gap-2">
+                              <dt>{label}</dt>
+                              <dd>{money(value)}</dd>
+                            </div>
+                          ))}
+                          {a.excess > 0 && (
+                            <div className="flex justify-between gap-2 text-red-700 dark:text-red-400">
+                              <dt>De más</dt>
+                              <dd>{money(a.excess)}</dd>
+                            </div>
+                          )}
+                        </dl>
                       )}
                       {p.note && <p className="text-xs text-muted">{p.note}</p>}
                     </div>

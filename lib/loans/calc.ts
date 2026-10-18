@@ -79,7 +79,21 @@ export type PeriodRow = {
   interestAccumulated: number | null;
 };
 
-export type Allocation = { id: string; toInterest: number; toPrincipal: number; excess: number };
+/** Desglose de un abono y cómo queda la deuda justo después de aplicarlo. */
+export type Allocation = {
+  id: string;
+  amount: number;
+  toInterest: number;
+  toPrincipal: number;
+  /** Parte del abono que no cubrió ninguna deuda. */
+  excess: number;
+  /** Interés pendiente justo después del abono. */
+  interestOutstanding: number;
+  /** Capital pendiente justo después del abono. */
+  principalOutstanding: number;
+  /** Capital + interés pendiente justo después del abono. */
+  totalOwed: number;
+};
 
 export type LoanSummary = {
   status: LoanStatus;
@@ -94,6 +108,21 @@ export type LoanSummary = {
   allocations: Allocation[];
   next: { number: number; due_date: string; rate: number; projectedInterest: number } | null;
 };
+
+// Tasa configurada de un periodo: la propia si se definió, si no la tasa por defecto.
+export function periodRate(loan: Pick<LoanInput, "rates" | "default_rate">, n: number): number {
+  const r = loan.rates.find((x) => x.period_number === n);
+  return r ? Number(r.rate) : Number(loan.default_rate);
+}
+
+// Periodo al que pertenece un abono hecho en `date`: el primero cuyo corte es >= date
+// (un abono el día del corte pertenece al periodo que vence ese día). 0 si es antes del préstamo.
+export function periodNumberAt(start: string, frequency: Frequency, date: string): number {
+  if (date < start) return 0;
+  let n = 1;
+  while (n < MAX_PERIODS && cutDate(start, frequency, n) < date) n++;
+  return n;
+}
 
 export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriods?: number } = {}): LoanSummary {
   const rateOverrides = new Map(loan.rates.map((r) => [r.period_number, Number(r.rate)]));
@@ -131,9 +160,13 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
     paid += amount;
     allocations.push({
       id: p.id,
+      amount: fromCents(amount),
       toInterest: fromCents(toInterest),
       toPrincipal: fromCents(toPrincipal),
       excess: fromCents(amount - toInterest - toPrincipal),
+      interestOutstanding: fromCents(interest),
+      principalOutstanding: fromCents(principal),
+      totalOwed: fromCents(principal + interest),
     });
   };
 
@@ -198,6 +231,94 @@ export function computeLoan(loan: LoanInput, today: string, opts: { futurePeriod
     periods,
     allocations,
     next,
+  };
+}
+
+export type PaymentPreview = {
+  /** Desglose del abono simulado. */
+  allocation: Allocation;
+  valid: boolean;
+  /** Por qué se rechaza: monto no positivo, o deja dinero sobrante en este abono o en uno posterior. */
+  reason: "non_positive" | "exceeds_debt" | null;
+  /** Total adeudado en esa fecha, justo antes del abono. */
+  owedAtDate: number;
+  /** Máximo que se puede abonar en esa fecha sin que sobre dinero en ningún abono. */
+  maxAmount: number;
+  /** Periodo siguiente al del abono e interés que generaría si no hay más abonos. */
+  next: { number: number; start: string; rate: number; configuredRate: number; projectedInterest: number };
+};
+
+const PREVIEW_ID = "__preview__";
+
+// Simula un abono nuevo sobre el préstamo (sin guardarlo) y dice si es válido.
+// nextRate, si se pasa, reemplaza la tasa del periodo siguiente al del abono.
+export function previewPayment(
+  loan: LoanInput,
+  payment: { amount: number; paid_at: string },
+  today: string,
+  nextRate?: number,
+): PaymentPreview {
+  const nextNumber = periodNumberAt(loan.start_date, loan.frequency, payment.paid_at) + 1;
+  const configuredRate = periodRate(loan, nextNumber);
+  const rate = nextRate !== undefined && Number.isFinite(nextRate) ? nextRate : configuredRate;
+  const input: LoanInput = {
+    ...loan,
+    rates: [...loan.rates.filter((r) => r.period_number !== nextNumber), { period_number: nextNumber, rate }],
+  };
+  // Se simula hasta la fecha del abono aunque sea futura, para cobrar los periodos que ya empezaron.
+  const day = payment.paid_at > today ? payment.paid_at : today;
+  // Se ordena después de los abonos existentes del mismo día, como al guardarlo ahora.
+  const simulate = (cents: number) => {
+    const s = computeLoan(
+      {
+        ...input,
+        payments: [
+          ...input.payments,
+          { id: PREVIEW_ID, amount: fromCents(cents), paid_at: payment.paid_at, created_at: "9999-12-31T23:59:59Z" },
+        ],
+      },
+      day,
+    );
+    return s.allocations;
+  };
+
+  const baseline = new Map(computeLoan(input, day).allocations.map((a) => [a.id, toCents(a.excess)]));
+  // El abono no puede dejar sobrante ni hacer que un abono posterior ya registrado quede con sobrante.
+  const fits = (allocs: Allocation[]) =>
+    allocs.every((a) => toCents(a.excess) <= (a.id === PREVIEW_ID ? 0 : (baseline.get(a.id) ?? 0)));
+
+  const owedCents = toCents(simulate(0).find((a) => a.id === PREVIEW_ID)!.totalOwed);
+  // Más abono => menos deuda después, así que la validez es monótona y se puede buscar el máximo.
+  let maxCents = owedCents;
+  if (!fits(simulate(owedCents))) {
+    let lo = 0;
+    let hi = owedCents;
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (fits(simulate(mid))) lo = mid;
+      else hi = mid;
+    }
+    maxCents = lo;
+  }
+
+  const amountCents = Number.isFinite(payment.amount) ? toCents(payment.amount) : 0;
+  const allocs = simulate(Math.max(amountCents, 0));
+  const allocation = allocs.find((a) => a.id === PREVIEW_ID)!;
+  const reason = amountCents <= 0 ? "non_positive" : fits(allocs) ? null : "exceeds_debt";
+
+  return {
+    allocation,
+    valid: reason === null,
+    reason,
+    owedAtDate: fromCents(owedCents),
+    maxAmount: fromCents(maxCents),
+    next: {
+      number: nextNumber,
+      start: nextNumber === 1 ? loan.start_date : cutDate(loan.start_date, loan.frequency, nextNumber - 1),
+      rate,
+      configuredRate,
+      projectedInterest: fromCents(Math.round((toCents(allocation.principalOutstanding) * rate) / 100)),
+    },
   };
 }
 
