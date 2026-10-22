@@ -26,6 +26,8 @@ El cálculo está en `lib/loans/calc.ts`. Los saldos no se guardan: se derivan d
 
 ## 2. Vercel
 
+Guía detallada paso a paso: [`DEPLOY-VERCEL.md`](DEPLOY-VERCEL.md).
+
 1. En vercel.com → **Add New… → Project → Import** el repositorio de GitHub. En **Production Branch** (Settings → Git) usa la rama que quieras publicar.
 2. Vercel detecta Next.js solo; no cambies *Build & Output Settings*.
 3. **Settings → Environment Variables** (marca Production, Preview y Development):

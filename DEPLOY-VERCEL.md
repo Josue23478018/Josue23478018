@@ -33,7 +33,6 @@ Necesitas tener a mano:
 2. En la lista de repositorios de GitHub, busca **`Josue23478018`** y pulsa **Import**.
    - Si no aparece: pulsa **Adjust GitHub App Permissions** y dale acceso a este repo.
 3. Vercel detecta **Next.js** solo. **No cambies** *Framework Preset*, *Root Directory* ni *Build Command*.
-   - El archivo `netlify.toml` es solo para Netlify; Vercel lo ignora.
 
 ## Paso 3. Variables de entorno
 
@@ -88,7 +87,7 @@ La rama que Vercel publica es la rama por defecto del repo (ahora `claude/loan-t
 | Página en blanco o error 500 al entrar | Faltan variables de entorno | Paso 3 + Redeploy |
 | El correo de confirmación lleva a `localhost` o a Netlify | Site URL vieja en Supabase | Paso 4 |
 | "No se pudo crear la cuenta" varias veces seguidas | Límite de correos por hora de Supabase | Espera una hora o desactiva *Confirm email* en Supabase (ver README) |
-| El pie de página dice "Versión local" | Ese número lo pone Netlify, no Vercel | No afecta nada, es solo informativo |
+| El pie de página dice "Versión local" | La versión no se tomó del commit (por ejemplo, un deploy subido a mano) | No afecta nada; con deploys desde GitHub muestra los 7 primeros caracteres del commit |
 
 ## Detalle importante
 
