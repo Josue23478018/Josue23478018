@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   interestCents,
+  projectInterest,
   addMonths,
   computeLoan,
   cutDate,
@@ -436,5 +437,14 @@ describe("interestCents: aritmética exacta y redondeo mitad hacia arriba", () =
 
   it("montos grandes sin perder precisión", () => {
     expect(interestCents(99999999999999, 999.999)).toBe(999998999999990); // 999.999% de 999 999 999 999.99
+  });
+});
+
+describe("projectInterest", () => {
+  it("interés de la siguiente quincena sobre el capital que queda", () => {
+    expect(projectInterest(170, 20)).toBe(34);
+    expect(projectInterest(950, 20)).toBe(190);
+    expect(projectInterest(250, 1.13)).toBe(2.83);
+    expect(projectInterest(170, 0)).toBe(0);
   });
 });

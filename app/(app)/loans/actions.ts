@@ -122,7 +122,7 @@ export async function addPayment(_: FormState, formData: FormData): Promise<Form
   if (paid_at < loan.start_date) return { error: "El pago no puede ser anterior a la fecha del préstamo." };
   if (paid_at > today()) return { error: "El pago no puede tener fecha futura." };
   if (loan.cancelled_at) return { error: "El préstamo está cancelado. Reactívalo para registrar abonos." };
-  const preview = previewPayment(toLoanInput(loan), { amount, paid_at }, today(), next_rate);
+  const preview = previewPayment(toLoanInput(loan), { amount, paid_at }, today());
   if (!preview.valid) {
     return {
       error: `El abono supera la deuda total a esa fecha. Máximo: ${formatMoney(preview.maxAmount, loan.currency)}`,
@@ -137,18 +137,18 @@ export async function addPayment(_: FormState, formData: FormData): Promise<Form
     }
     return { error: "No se pudo registrar el pago." };
   }
-  // Solo se guarda si la tasa elegida difiere de la que ya tendría ese periodo.
+  // Tasa del periodo siguiente elegida al registrar el abono; solo se guarda si cambia.
   if (next_rate !== undefined && next_rate !== preview.next.configuredRate) {
     const { error: rateError } = await supabase
       .from("period_rates")
       .upsert({ loan_id, period_number: preview.next.number, rate: next_rate }, { onConflict: "loan_id,period_number" });
     if (rateError) {
       revalidatePath("/", "layout");
-      return { error: "Pago registrado, pero no se pudo guardar la tasa de la siguiente quincena." };
+      return { error: "Abono registrado, pero no se pudo guardar la tasa del periodo siguiente." };
     }
   }
   revalidatePath("/", "layout");
-  return { message: "Pago registrado." };
+  return { message: "Abono registrado." };
 }
 
 export async function deletePayment(formData: FormData) {

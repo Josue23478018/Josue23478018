@@ -344,3 +344,8 @@ export function totalsByCurrency(
   for (const l of loans) totals.set(l.currency, (totals.get(l.currency) ?? 0) + toCents(l.summary[field]));
   return [...totals.entries()].filter(([, c]) => c > 0).map(([cur, c]) => [cur, fromCents(c)]);
 }
+
+// Interés que cobraría un periodo con esta tasa sobre este capital (redondeo exacto a centavos).
+export function projectInterest(principal: number, rate: number): number {
+  return fromCents(interestCents(toCents(principal), rate));
+}

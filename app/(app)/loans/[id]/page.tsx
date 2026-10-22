@@ -4,23 +4,19 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { BackLink, EmptyState, Metric, PageHeader, StatusBadge } from "@/components/ui";
 import { getLoan, toLoanInput } from "@/lib/loans/queries";
 import { FREQUENCY_LABEL, formatDate, formatMoney, today } from "@/lib/format";
-import { deleteLoan, deletePayment, resetPeriodRate, setCancelled } from "../actions";
+import { deleteLoan, deletePayment, setCancelled } from "../actions";
 import { PaymentForm } from "./payment-form";
-import { RateForm } from "./rate-form";
-
-const PERIOD_COLS = "md:grid-cols-[3rem_minmax(0,1.3fr)_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)]";
 
 export default async function LoanPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const loan = await getLoan(id);
+  const loan = await getLoan(id, 0);
   if (!loan) notFound();
 
   const { summary } = loan;
   const money = (n: number) => formatMoney(n, loan.currency);
   const day = today();
   const allocations = new Map(summary.allocations.map((a) => [a.id, a]));
-  const periods = [...summary.periods].reverse();
   const contact = [loan.borrower.phone, loan.borrower.email].filter(Boolean).join(" · ") || "Sin contacto";
   const canPay = !loan.cancelled_at && summary.balance > 0;
 
@@ -140,6 +136,7 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
         </div>
         {canPay ? (
           <PaymentForm
+            paymentsCount={loan.payments.length}
             loanId={loan.id}
             loan={toLoanInput(loan)}
             currency={loan.currency}
@@ -295,71 +292,6 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
         )}
       </section>
 
-      <section aria-labelledby="periodos" className="card space-y-4">
-        <div className="space-y-1">
-          <h2 id="periodos" className="h2">
-            Periodos y tasas
-          </h2>
-          <p className="text-sm text-muted">Puedes cambiar la tasa de cualquier periodo, pasado o futuro; los saldos se recalculan automáticamente.</p>
-        </div>
-        {periods.length === 0 ? (
-          <EmptyState compact title="Sin periodos" description="Los periodos aparecerán cuando empiece a correr el interés." />
-        ) : (
-          <div>
-            <div aria-hidden="true" className={`hidden gap-4 border-b border-border pb-2 text-xs font-medium tracking-wide text-muted uppercase md:grid ${PERIOD_COLS}`}>
-              <span>#</span>
-              <span>Periodo</span>
-              <span>Tasa</span>
-              <span className="text-right">Capital</span>
-              <span className="text-right">Interés</span>
-            </div>
-            <ul className="divide-y divide-border">
-              {periods.map((p) => {
-                const tag = p.accrued ? null : p.number === summary.next?.number ? "Próximo" : "Futuro";
-                return (
-                  <li key={p.number} className={`grid grid-cols-2 gap-x-4 gap-y-3 py-4 md:items-center ${PERIOD_COLS}`}>
-                    <div className="col-span-2 flex items-center justify-between gap-3 md:contents">
-                      <span className="text-sm font-semibold tabular-nums">
-                        <span className="md:sr-only">Periodo </span>
-                        {p.number}
-                      </span>
-                      <span className={`text-sm ${p.accrued ? "" : "text-muted"}`}>
-                        <span className="whitespace-nowrap">{formatDate(p.start)}</span> – <span className="whitespace-nowrap">{formatDate(p.end)}</span>
-                        {tag && (
-                          <span className="ml-2 inline-block rounded-full border border-border bg-subtle px-2 py-0.5 text-xs font-medium text-muted">
-                            {tag}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="col-span-2 space-y-1 md:col-span-1">
-                      <RateForm key={`${p.number}-${p.rate}`} loanId={loan.id} periodNumber={p.number} rate={p.rate} />
-                      {p.overridden && (
-                        <form action={resetPeriodRate} className="flex flex-wrap items-center gap-2">
-                          <input type="hidden" name="loan_id" value={loan.id} />
-                          <input type="hidden" name="period_number" value={p.number} />
-                          <span className="text-xs font-medium text-accent">Tasa personalizada</span>
-                          <button className="inline-flex min-h-11 items-center text-xs text-muted underline hover:text-foreground md:min-h-0">
-                            Usar {loan.default_rate}% por defecto
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                    <div className={p.accrued ? "" : "text-muted"}>
-                      <span className="block text-xs text-muted md:sr-only">Capital</span>
-                      <span className="num block text-left text-sm md:text-right">{p.base !== null ? money(p.base) : "—"}</span>
-                    </div>
-                    <div className={`text-right ${p.accrued ? "" : "text-muted"}`}>
-                      <span className="block text-xs text-muted md:sr-only">Interés</span>
-                      <span className="num block text-sm font-medium">{p.interest !== null ? money(p.interest) : "—"}</span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-      </section>
     </div>
   );
 }
