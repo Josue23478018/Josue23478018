@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { answer, EXAMPLE_QUESTIONS, type AssistantReply } from "@/lib/loans/assistant";
+import { answer, EXAMPLE_QUESTIONS, UNSUPPORTED_QUESTIONS, type AssistantReply } from "@/lib/loans/assistant";
 import type { LoanInput } from "@/lib/loans/calc";
 
 type Message = { role: "user" | "assistant"; text: string; table?: AssistantReply["table"] };
@@ -42,13 +42,6 @@ export function LoanAssistant({
                 ? "Pregunta sobre este préstamo: saldo, cuánto va a interés y a capital si abona, cuánto falta para liquidar, o cómo quedaría en las próximas quincenas."
                 : 'Simula un préstamo, por ejemplo: "si presto 500 al 20% quincenal y me abona 100 cada quincena".'}
             </p>
-            <div className="flex flex-wrap gap-2">
-              {suggestions.map((q) => (
-                <button key={q} type="button" onClick={() => send(q)} className="btn-secondary btn-sm min-h-11 text-left sm:min-h-9">
-                  {q}
-                </button>
-              ))}
-            </div>
           </div>
         ) : (
           messages.map((m, i) =>
@@ -91,6 +84,17 @@ export function LoanAssistant({
         )}
       </div>
 
+      <div>
+        <p className="mb-2 text-xs font-medium text-muted">Preguntas que puedes hacer</p>
+        <div className="flex flex-wrap gap-2">
+          {suggestions.map((q) => (
+            <button key={q} type="button" onClick={() => send(q)} className="btn-secondary btn-sm min-h-11 h-auto py-2 text-left sm:min-h-9">
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -118,6 +122,15 @@ export function LoanAssistant({
           Nueva conversación
         </button>
       )}
+      <div className="text-[0.7rem] leading-relaxed text-muted">
+        <p className="font-medium">No responde:</p>
+        <ul className="list-disc pl-4">
+          {UNSUPPORTED_QUESTIONS.map((q) => (
+            <li key={q}>{q}</li>
+          ))}
+        </ul>
+        <p className="mt-1">Las respuestas son cálculos con las reglas de la app, no asesoría financiera.</p>
+      </div>
     </div>
   );
 }
