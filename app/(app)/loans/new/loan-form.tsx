@@ -156,7 +156,7 @@ export function LoanForm({
               ))}
             </select>
           </Field>
-          <Field label={`Tasa por ${noun}`} suffix="%" hint="Podrás cambiarla en cada periodo desde el detalle">
+          <Field label={`Tasa por ${noun}`} suffix="%" hint="Al registrar cada abono se te preguntará la tasa del periodo siguiente">
             <input
               className="input pr-10 tabular-nums"
               name="default_rate"

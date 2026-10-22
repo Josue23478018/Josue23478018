@@ -71,6 +71,7 @@ Cambia `josue23478018.vercel.app` por la URL que te dio Vercel si es distinta.
    - Si una `tabla` sale en `false`: falta ejecutar alguna migración en Supabase.
 2. Abre la URL principal, crea una cuenta, confirma el correo y entra.
 3. Crea un préstamo de prueba para confirmar que guarda.
+4. Abre la pestaña **Asistente** y pregunta, por ejemplo, "¿cuánto debe?". El asistente no necesita ninguna clave ni variable extra: funciona gratis dentro del sitio.
 
 ---
 

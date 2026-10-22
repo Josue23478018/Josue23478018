@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ConfirmButton } from "@/components/confirm-button";
+import { LoanAssistant } from "@/components/loan-assistant";
 import { BackLink, EmptyState, Metric, PageHeader, StatusBadge } from "@/components/ui";
 import { getLoan, toLoanInput } from "@/lib/loans/queries";
 import { FREQUENCY_LABEL, formatDate, formatMoney, today } from "@/lib/format";
@@ -292,6 +293,15 @@ export default async function LoanPage({ params }: { params: Promise<{ id: strin
         )}
       </section>
 
+      <section aria-labelledby="asistente" className="card space-y-4">
+        <div className="space-y-1">
+          <h2 id="asistente" className="h2">
+            Asistente del préstamo
+          </h2>
+          <p className="text-sm text-muted">Pregunta cómo quedaría con un abono, cuánto falta para liquidar o cómo va en las próximas quincenas.</p>
+        </div>
+        <LoanAssistant loan={toLoanInput(loan)} currency={loan.currency} today={day} borrowerName={loan.borrower.name} />
+      </section>
     </div>
   );
 }

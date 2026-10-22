@@ -7,6 +7,7 @@ const NAV = [
   { href: "/dashboard", label: "Resumen", icon: "M3 12h4v8H3zM10 4h4v16h-4zM17 9h4v11h-4z" },
   { href: "/loans", label: "Préstamos", icon: "M3 6h18v12H3zM3 10h18M7 15h4" },
   { href: "/borrowers", label: "Personas", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0" },
+  { href: "/asistente", label: "Asistente", icon: "M4 5h16v11H8l-4 4zM8 9h8M8 12h5" },
 ];
 
 function Icon({ d }: { d: string }) {
@@ -52,7 +53,7 @@ export function BottomNav() {
       aria-label="Principal"
       className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
     >
-      <ul className="mx-auto grid max-w-md grid-cols-3">
+      <ul className="mx-auto grid max-w-md grid-cols-4">
         {NAV.map((n) => {
           const active = isActive(n.href);
           return (

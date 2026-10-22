@@ -4,6 +4,7 @@ Registro personal de préstamos de dinero. Cada usuario se registra con su corre
 
 - **Stack:** Next.js 15 (App Router) + Supabase (Postgres + Auth) + Vercel.
 - **Por préstamo:** persona y contacto, monto, moneda, fecha, periodo (semanal, quincenal o mensual), tasa por periodo, fecha límite opcional, abonos y estado.
+- **Asistente (chatbot):** en la pestaña *Asistente* y al final de cada préstamo. Responde preguntas como "si abona 70, ¿cómo queda?", "¿cuánto necesita para liquidar?", "¿en cuántas quincenas termina si abona 60 cada quincena?" o "si presto 500 al 20% quincenal…". Es gratis: no usa inteligencia artificial ni servicios externos; reconoce la pregunta con reglas de texto y calcula con las mismas funciones de la app (`lib/loans/assistant.ts`).
 - **Recordatorios:** dentro de la app. El resumen muestra los atrasados y lo que vence en los próximos 7 días. No hay envío por correo ni WhatsApp todavía.
 
 ## Reglas de cálculo
@@ -54,6 +55,8 @@ npm run lint && npm run typecheck && npm run build
 
 - `supabase/migrations/`: tablas y RLS (`0002` cambia a interés por periodo con tasa editable y agrega `period_rates`).
 - `lib/loans/calc.ts`: interés por periodo, aplicación de abonos y estado (funciones puras, con tests).
+- `lib/loans/assistant.ts`: el asistente (lectura de preguntas, respuestas y proyecciones).
+- `lib/loans/reference.test.ts`: implementación independiente día por día comparada con la de la app en cientos de préstamos al azar.
 - `lib/loans/queries.ts`: lectura de datos (RLS filtra por usuario).
 - `app/(app)/...`: resumen, préstamos y personas. `app/(auth)/...`: login y registro.
 - `middleware.ts`: refresca la sesión y protege las rutas privadas.
