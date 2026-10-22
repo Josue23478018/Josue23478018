@@ -37,8 +37,8 @@ const hyp: AssistantContext = { loan: null, currency: "USD", today: "2026-10-21"
 
 type Case = { id: string; q: string; c?: AssistantContext; has?: string[]; not?: string[] };
 
-// Cortes del préstamo base: Q1 vence 2026-10-29, Q2 2026-11-12, Q3 2026-11-26, Q4 2026-12-10,
-// Q5 2026-12-24. Q1 cobra 20% de 200 = 40.
+// Cortes del préstamo base: Q1 vence 2026-10-31, Q2 2026-11-15, Q3 2026-11-30, Q4 2026-12-15,
+// Q5 2026-12-31. Q1 cobra 20% de 200 = 40.
 const cases: Case[] = [
   // 1. Estado
   { id: "1a", q: "¿Cuánto me debe?", has: ["Capital pendiente: USD 200.00", "Interés pendiente: USD 40.00", "Total adeudado hoy: USD 240.00"] },
@@ -64,22 +64,22 @@ const cases: Case[] = [
   { id: "4g", q: "si abona -50", not: ["A capital: USD 10.00", "A interés: USD 40.00"] },
   // 5. Liquidar
   { id: "5a", q: "¿Cuánto necesita para liquidar hoy?", has: ["USD 240.00", "Interés pendiente: USD 40.00", "Capital pendiente: USD 200.00"] },
-  // 30/10 ya empezó Q2 (29/10): +40 de interés → 280
-  { id: "5b", q: "cuánto para liquidar el 30/10/2026", has: ["USD 280.00", "Interés pendiente: USD 80.00", "Capital pendiente: USD 200.00"] },
-  { id: "5c", q: "liquidar el 2026-10-30", has: ["USD 280.00"] },
+  // 1/11 ya empezó Q2 (31/10): +40 de interés → 280
+  { id: "5b", q: "cuánto para liquidar el 01/11/2026", has: ["USD 280.00", "Interés pendiente: USD 80.00", "Capital pendiente: USD 200.00"] },
+  { id: "5c", q: "liquidar el 2026-11-01", has: ["USD 280.00"] },
   // Día del corte: pertenece a Q1 → 240
-  { id: "5d", q: "cuanto para liquidar el 29/10/2026", has: ["USD 240.00"] },
+  { id: "5d", q: "cuanto para liquidar el 31/10/2026", has: ["USD 240.00"] },
   // 6. Interés próxima quincena
   { id: "6a", q: "¿Cuánto es el interés de la próxima quincena?", has: ["Interés: USD 40.00"] },
   { id: "6b", q: "interés de la siguiente quincena al 25%", has: ["Interés: USD 50.00"] },
   { id: "6c", q: "si abona 100 al 25%", has: ["Capital pendiente: USD 140.00", "USD 35.00"] },
   // 8. En cuántas quincenas termina
   { id: "8a", q: "¿En cuántas quincenas termina si abona 40 cada quincena?", has: ["no se termina", "USD 40.00"] },
-  { id: "8b", q: "¿En cuántas quincenas termina si abona 41 cada quincena?", has: ["21 quincenas", "5 ago 2027", "USD 835.95", "USD 635.95", "USD 15.95"] },
-  { id: "8c", q: "¿En cuántas quincenas termina si abona 70 cada quincena?", has: ["5 quincenas", "24 dic 2026", "USD 326.75", "USD 126.75", "USD 46.75"] },
-  { id: "8d", q: "¿En cuántas quincenas termina si abona 250 cada quincena?", has: ["1 quincena", "29 oct 2026", "USD 240.00", "interés: USD 40.00"] },
+  { id: "8b", q: "¿En cuántas quincenas termina si abona 41 cada quincena?", has: ["21 quincenas", "31 ago 2027", "USD 835.95", "USD 635.95", "USD 15.95"] },
+  { id: "8c", q: "¿En cuántas quincenas termina si abona 70 cada quincena?", has: ["5 quincenas", "31 dic 2026", "USD 326.75", "USD 126.75", "USD 46.75"] },
+  { id: "8d", q: "¿En cuántas quincenas termina si abona 250 cada quincena?", has: ["1 quincena", "31 oct 2026", "USD 240.00", "interés: USD 40.00"] },
   // 9. Hipotéticos (desde 2026-10-21)
-  { id: "9a", c: hyp, q: "si presto 1000 al 10% quincenal y me abona 150 cada quincena, ¿en cuántas quincenas termina?", has: ["USD 100.00", "12 quincenas", "7 abr 2027", "USD 1,730.80", "USD 730.80", "USD 80.80"] },
+  { id: "9a", c: hyp, q: "si presto 1000 al 10% quincenal y me abona 150 cada quincena, ¿en cuántas quincenas termina?", has: ["USD 100.00", "12 quincenas", "15 abr 2027", "USD 1,730.80", "USD 730.80", "USD 80.80"] },
   { id: "9b", c: hyp, q: "si presto 1000 al 10% semanal y me abona 150 cada semana, ¿en cuántas semanas termina?", has: ["12 semanas", "13 ene 2027", "USD 1,730.80", "USD 730.80"] },
   { id: "9c", c: hyp, q: "si presto 1000 al 10% mensual y me abona 150 cada mes, ¿en cuántos meses termina?", has: ["12 meses", "21 oct 2027", "USD 1,730.80"] },
   { id: "9d", c: hyp, q: "si presto 1,000 al 10% quincenal y me abona 150 cada quincena, ¿en cuántas quincenas termina?", has: ["12 quincenas", "USD 1,730.80"] },
@@ -96,13 +96,13 @@ const cases: Case[] = [
   // Tasa 0%
   { id: "0a", c: withLoan({ default_rate: 0 }), q: "saldo", has: ["Capital pendiente: USD 200.00", "Interés pendiente: USD 0.00", "Total adeudado hoy: USD 200.00"] },
   { id: "0b", c: withLoan({ default_rate: 0 }), q: "si abona 50", has: ["A interés: USD 0.00", "A capital: USD 50.00", "Capital pendiente: USD 150.00"] },
-  { id: "0c", c: withLoan({ default_rate: 0 }), q: "en cuantas quincenas termina si abona 50 cada quincena", has: ["4 quincenas", "10 dic 2026", "USD 200.00", "interés: USD 0.00"] },
+  { id: "0c", c: withLoan({ default_rate: 0 }), q: "en cuantas quincenas termina si abona 50 cada quincena", has: ["4 quincenas", "15 dic 2026", "USD 200.00", "interés: USD 0.00"] },
   // Centavos: 333.33 al 12.5% → 41.66625 → 41.67 ; 275 × 12.5% = 34.375 → 34.38
   { id: "cA", c: withLoan({ principal: 333.33, default_rate: 12.5 }), q: "saldo", has: ["Interés pendiente: USD 41.67", "Total adeudado hoy: USD 375.00"] },
   { id: "cB", c: withLoan({ principal: 333.33, default_rate: 12.5 }), q: "si abona 100", has: ["A interés: USD 41.67", "A capital: USD 58.33", "Capital pendiente: USD 275.00", "USD 34.38"] },
   { id: "cC", c: withLoan({ principal: 250, default_rate: 1.13 }), q: "saldo", has: ["Interés pendiente: USD 2.83"] },
   // 10. Abonos previos (uno el día del corte) y tasa 30% en Q2. Hoy 2026-11-05.
-  // Q1: 40; abono 50 (20/10) → 40 int + 10 cap → 190; abono 30 (29/10, día de corte, Q1) → 30 cap → 160.
+  // Q1: 40; abono 50 (20/10) → 40 int + 10 cap → 190; abono 30 (31/10, día de corte, Q1) → 30 cap → 160.
   // Q2 (30%): 48 sobre 160. Hoy: capital 160, interés 48, total 208. Q3 (20%): 32.
   ...(() => {
     const c = withLoan(
@@ -110,7 +110,7 @@ const cases: Case[] = [
         rates: [{ period_number: 2, rate: 30 }],
         payments: [
           { id: "a", amount: 50, paid_at: "2026-10-20" },
-          { id: "b", amount: 30, paid_at: "2026-10-29" },
+          { id: "b", amount: 30, paid_at: "2026-10-31" },
         ],
       },
       "2026-11-05",
@@ -126,8 +126,8 @@ const cases: Case[] = [
   { id: "10e", c: withLoan({ rates: [{ period_number: 2, rate: 30 }] }), q: "si abona 70", has: ["Capital pendiente: USD 170.00", "30% sobre USD 170.00 = USD 51.00"] },
   { id: "10f", c: withLoan({ rates: [{ period_number: 2, rate: 30 }] }), q: "interes de la proxima quincena", has: ["Interés: USD 60.00"] },
   // Abono futuro después de un corte: 30/10 debe 280; 70 → todo a interés, quedan 10 de interés
-  { id: "rA", q: "si abona 70 el 30/10/2026", has: ["USD 280.00", "A interés: USD 70.00", "A capital: USD 0.00", "Interés pendiente: USD 10.00", "Capital pendiente: USD 200.00"] },
-  { id: "rB", q: "si abona 70 el 29/10/2026", has: ["A interés: USD 40.00", "A capital: USD 30.00", "Capital pendiente: USD 170.00"] },
+  { id: "rA", q: "si abona 70 el 01/11/2026", has: ["USD 280.00", "A interés: USD 70.00", "A capital: USD 0.00", "Interés pendiente: USD 10.00", "Capital pendiente: USD 200.00"] },
+  { id: "rB", q: "si abona 70 el 31/10/2026", has: ["A interés: USD 40.00", "A capital: USD 30.00", "Capital pendiente: USD 170.00"] },
   // 12. Robustez del lenguaje
   { id: "12a", q: "SI ABONA 70", has: ["A capital: USD 30.00"] },
   { id: "12b", q: "si abona 70!!!", has: ["A capital: USD 30.00"] },
@@ -138,7 +138,7 @@ const cases: Case[] = [
   { id: "12g", q: "y si abona setenta", has: ["70"] },
   { id: "12h", q: "si paga el 29 de octubre 70", has: ["A capital: USD 30.00"], not: ["USD 29.00"] },
   { id: "12i", q: "¿Cuánto falta del préstamo de 200?", has: ["Total adeudado hoy: USD 240.00"] },
-  { id: "12j", q: "cuanto debe al 30/10/2026", has: ["USD 280.00"] },
+  { id: "12j", q: "cuanto debe al 01/11/2026", has: ["USD 280.00"] },
   { id: "12k", q: "si abona 40 y luego 70", has: ["Capital pendiente: USD 170.00"] },
   { id: "12l", q: "si abona 1.000", has: ["USD 240.00"], not: ["A capital"] },
   { id: "12m", q: "si paga todo", has: ["USD 240.00"] },
@@ -146,15 +146,15 @@ const cases: Case[] = [
   { id: "12o", q: "como quedaria en 3 quincenas si no paga nada", has: ["Al final: capital USD 200.00, interés pendiente USD 120.00, total adeudado USD 320.00"] },
   { id: "12p", q: "si abona 70 dentro de 2 quincenas", has: ["A interés"] },
   // Lote 2
-  { id: "13a", q: "cuanto para liquidar el 30-10-2026", has: ["USD 280.00"] },
-  { id: "13b", q: "si abona 70 el 30/10", has: ["USD 280.00", "Interés pendiente: USD 10.00"] },
+  { id: "13a", q: "cuanto para liquidar el 01-11-2026", has: ["USD 280.00"] },
+  { id: "13b", q: "si abona 70 el 1/11", has: ["USD 280.00", "Interés pendiente: USD 10.00"] },
   { id: "13c", q: "si abona 70 el 31/02/2027", not: ["A capital"] },
   { id: "13d", q: "interes de la proxima quincena al 12,5%", has: ["Interés: USD 25.00"] },
   { id: "13e", q: "abona 50 cada quincena por 4 quincenas", has: ["Al final: capital USD 146.32"] },
   { id: "13f", q: "si abona $1,000.50", has: ["USD 240.00"], not: ["A capital"] },
   { id: "13g", q: "si abona 70 mañana", has: ["22 oct 2026", "A capital: USD 30.00"] },
-  // Al 10% desde Q2: 170 → 117 → 58.70 → último 64.57; total 274.57, interés 74.57, 10 dic 2026
-  { id: "13h", q: "en cuantas quincenas termina si abona 70 cada quincena al 10%", has: ["4 quincenas", "10 dic 2026", "USD 274.57", "USD 74.57", "USD 64.57"] },
+  // Al 10% desde Q2: 170 → 117 → 58.70 → último 64.57; total 274.57, interés 74.57, 15 dic 2026
+  { id: "13h", q: "en cuantas quincenas termina si abona 70 cada quincena al 10%", has: ["4 quincenas", "15 dic 2026", "USD 274.57", "USD 74.57", "USD 64.57"] },
   { id: "13i", c: hyp, q: "si presto 500 al 20% quincenal", has: ["USD 100.00"] },
   { id: "13j", c: hyp, q: "cuanto me debe", has: ["monto y tasa"] },
   // Atrasado: hoy 2026-11-05 sin abonos → Q1 (40) vencido + Q2 (40) → total 280, atrasado 40
@@ -195,7 +195,7 @@ describe("auditoría: projectLoan fila por fila", () => {
       [3, 35.6, 50, 35.6, 14.4, 163.6, 0],
       [4, 32.72, 50, 32.72, 17.28, 146.32, 0],
     ]);
-    expect(p.rows.map((r) => r.end)).toEqual(["2026-10-29", "2026-11-12", "2026-11-26", "2026-12-10"]);
+    expect(p.rows.map((r) => r.end)).toEqual(["2026-10-31", "2026-11-15", "2026-11-30", "2026-12-15"]);
     expect(p.paidOff).toBe(false);
   });
 
@@ -235,7 +235,7 @@ describe("auditoría: projectLoan fila por fila", () => {
       rates: [{ period_number: 2, rate: 30 }],
       payments: [
         { id: "a", amount: 50, paid_at: "2026-10-20" },
-        { id: "b", amount: 30, paid_at: "2026-10-29" },
+        { id: "b", amount: 30, paid_at: "2026-10-31" },
       ],
     };
     const p = projectLoan(loan, "2026-11-05", { periods: 3, payment: 60 });
@@ -261,7 +261,7 @@ describe("auditoría: projectLoan fila por fila", () => {
     expect(p.rows.map((r) => r.principalAfter)).toEqual(capital);
     expect(p.rows.map((r) => r.interest)).toEqual(interest);
     expect(p.rows[11].payment).toBe(80.8);
-    expect(p.rows[11].end).toBe("2027-04-07");
+    expect(p.rows[11].end).toBe("2027-04-15");
   });
 });
 
@@ -293,8 +293,8 @@ describe("auditoría: capa de cálculo directa", () => {
 
   // Decisión: el día de corte el saldo (280) ya incluye la quincena que empieza, pero un abono de ese
   // día cuenta para la quincena que vence, así que liquidar hoy cuesta 240. Ambas respuestas lo explican.
-  it("[cut-day] hoy = día de corte (29/10): estado y liquidar explican 280 frente a 240", () => {
-    const c = { ...ctx, today: "2026-10-29" };
+  it("[cut-day] hoy = día de corte (31/10): estado y liquidar explican 280 frente a 240", () => {
+    const c = { ...ctx, today: "2026-10-31" };
     const st = ask("cut-st", "saldo", c).text;
     const lq = ask("cut-lq", "cuanto necesita para liquidar hoy", c).text;
     expect(st).toContain("Total adeudado hoy: USD 280.00");
@@ -304,8 +304,8 @@ describe("auditoría: capa de cálculo directa", () => {
   });
 
   it("[cut-proj] proyección con hoy = día de corte (registro para el informe)", () => {
-    ask("cut-proj", "si abona 70 cada quincena como quedaria en 2 quincenas", { ...ctx, today: "2026-10-29" });
-    ask("cut-time", "en cuantas quincenas termina si abona 70 cada quincena", { ...ctx, today: "2026-10-29" });
+    ask("cut-proj", "si abona 70 cada quincena como quedaria en 2 quincenas", { ...ctx, today: "2026-10-31" });
+    ask("cut-time", "en cuantas quincenas termina si abona 70 cada quincena", { ...ctx, today: "2026-10-31" });
   });
 });
 

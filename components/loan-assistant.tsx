@@ -6,6 +6,13 @@ import type { LoanInput } from "@/lib/loans/calc";
 
 type Message = { role: "user" | "assistant"; text: string; table?: AssistantReply["table"] };
 
+// En celular solo se ven las columnas de `phone`; las de `phoneOnly` desaparecen desde sm.
+function columnClass(table: NonNullable<Message["table"]>, column: number) {
+  if (table.phoneOnly?.includes(column)) return "sm:hidden";
+  if (table.phone && !table.phone.includes(column)) return "hidden sm:table-cell";
+  return "";
+}
+
 // Chat de cálculos: cada respuesta la genera lib/loans/assistant en el navegador (sin costo ni servidor).
 export function LoanAssistant({
   loan,
@@ -20,7 +27,7 @@ export function LoanAssistant({
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const listRef = useRef<HTMLDivElement>(null);
+  const lastQuestionRef = useRef<HTMLDivElement>(null);
   const suggestions = loan ? EXAMPLE_QUESTIONS : EXAMPLE_QUESTIONS.filter((q) => q.startsWith("Si presto"));
 
   function send(question: string) {
@@ -29,12 +36,13 @@ export function LoanAssistant({
     const reply = answer(q, { loan, currency, today, borrowerName });
     setMessages((m) => [...m, { role: "user", text: q }, { role: "assistant", text: reply.text, table: reply.table }]);
     setInput("");
-    requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }));
+    // La página hace el scroll: lleva la pregunta nueva arriba para leer la respuesta desde el inicio.
+    requestAnimationFrame(() => lastQuestionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   return (
     <div className="space-y-4">
-      <div ref={listRef} aria-live="polite" className="max-h-[32rem] space-y-3 overflow-y-auto">
+      <div aria-live="polite" className="space-y-3">
         {messages.length === 0 ? (
           <div className="panel space-y-3">
             <p className="text-sm text-muted">
@@ -46,7 +54,7 @@ export function LoanAssistant({
         ) : (
           messages.map((m, i) =>
             m.role === "user" ? (
-              <div key={i} className="flex justify-end">
+              <div key={i} ref={i === messages.length - 2 ? lastQuestionRef : undefined} className="flex scroll-mt-20 justify-end">
                 <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-accent px-4 py-2 text-sm text-accent-foreground">{m.text}</p>
               </div>
             ) : (
@@ -58,7 +66,7 @@ export function LoanAssistant({
                       <thead>
                         <tr>
                           {m.table.headers.map((h, j) => (
-                            <th key={h} className={j >= 3 ? "num" : undefined}>
+                            <th key={h} className={`${j >= 3 ? "num" : ""} ${columnClass(m.table!, j)}`}>
                               {h}
                             </th>
                           ))}
@@ -68,7 +76,7 @@ export function LoanAssistant({
                         {m.table.rows.map((row, r) => (
                           <tr key={r}>
                             {row.map((cell, c) => (
-                              <td key={c} className={c >= 3 ? "num" : "whitespace-nowrap"}>
+                              <td key={c} className={`${c >= 3 ? "num whitespace-pre-line" : "whitespace-nowrap"} ${columnClass(m.table!, c)}`}>
                                 {cell}
                               </td>
                             ))}
@@ -100,7 +108,7 @@ export function LoanAssistant({
           e.preventDefault();
           send(input);
         }}
-        className="flex gap-2"
+        className="sticky bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] z-10 -mx-4 flex gap-2 border-t border-border bg-surface/95 px-4 py-2 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
       >
         <label className="sr-only" htmlFor="pregunta">
           Pregunta

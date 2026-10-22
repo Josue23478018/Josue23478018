@@ -12,7 +12,7 @@ import {
   type LoanInput,
 } from "./calc";
 
-// 1000 al 10% quincenal desde el 1 de enero: cortes el 15 y el 29 de enero, 12 de febrero...
+// 1000 al 10% quincenal desde el 1 de enero: cortes el 15 y el 31 de enero, 15 de febrero...
 const base: LoanInput = {
   principal: 1000,
   start_date: "2026-01-01",
@@ -25,9 +25,50 @@ const base: LoanInput = {
 };
 
 describe("fechas de corte", () => {
-  it("quincenal suma 14 días por periodo", () => {
-    expect(cutDate("2026-01-01", "biweekly", 1)).toBe("2026-01-15");
-    expect(cutDate("2026-01-01", "biweekly", 2)).toBe("2026-01-29");
+  it("quincenal vence el 15 y el último día de cada mes", () => {
+    expect([1, 2, 3, 4, 5].map((n) => cutDate("2026-01-01", "biweekly", n))).toEqual([
+      "2026-01-15",
+      "2026-01-31",
+      "2026-02-15",
+      "2026-02-28",
+      "2026-03-15",
+    ]);
+    // Fin de febrero en año bisiesto, meses de 30 días y cambio de año.
+    expect(cutDate("2028-02-01", "biweekly", 2)).toBe("2028-02-29");
+    expect(cutDate("2026-04-01", "biweekly", 2)).toBe("2026-04-30");
+    expect([1, 2, 3].map((n) => cutDate("2026-12-10", "biweekly", n))).toEqual(["2026-12-31", "2027-01-15", "2027-01-31"]);
+  });
+
+  it("la primera quincena dura al menos 7 días: si el corte llega antes, pasa al siguiente", () => {
+    expect(cutDate("2026-11-08", "biweekly", 1)).toBe("2026-11-15"); // 7 días: justo el mínimo
+    expect(cutDate("2026-11-09", "biweekly", 1)).toBe("2026-11-30"); // el 15 quedaría a 6 días
+    expect(cutDate("2026-11-14", "biweekly", 1)).toBe("2026-11-30"); // ejemplo: no se cobra 2 veces en 2 días
+    expect(cutDate("2026-11-15", "biweekly", 1)).toBe("2026-11-30");
+    expect(cutDate("2026-11-24", "biweekly", 1)).toBe("2026-12-15"); // el 30 quedaría a 6 días
+    expect(cutDate("2026-10-31", "biweekly", 1)).toBe("2026-11-15");
+    expect(cutDate("2026-02-22", "biweekly", 1)).toBe("2026-03-15"); // el 28 de febrero quedaría a 6 días
+    expect(cutDate("2026-02-21", "biweekly", 1)).toBe("2026-02-28");
+  });
+
+  it("las quincenas siguientes van seguidas, sin saltarse ningún 15 ni fin de mes", () => {
+    for (let d = 0; d < 400; d++) {
+      const start = addDays("2026-01-01", d);
+      const first = cutDate(start, "biweekly", 1);
+      const days = Math.round((Date.parse(first) - Date.parse(start)) / 864e5);
+      expect(days, start).toBeGreaterThanOrEqual(7);
+      expect(days, start).toBeLessThanOrEqual(22);
+      for (let n = 1; n <= 30; n++) {
+        const cut = cutDate(start, "biweekly", n);
+        const [y, m, day] = cut.split("-").map(Number);
+        const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        expect(day === 15 || day === last, cut).toBe(true);
+        // El día siguiente al corte n, el siguiente 15 o fin de mes es el corte n + 1.
+        const next = cutDate(start, "biweekly", n + 1);
+        const gap = Math.round((Date.parse(next) - Date.parse(cut)) / 864e5);
+        expect(gap, `${start} ${cut} → ${next}`).toBeGreaterThanOrEqual(13);
+        expect(gap, `${start} ${cut} → ${next}`).toBeLessThanOrEqual(16);
+      }
+    }
   });
 
   it("mensual se ancla a la fecha inicial y ajusta fin de mes", () => {
@@ -70,7 +111,7 @@ describe("interés por quincena, cobrado al empezar sobre el capital pendiente",
   });
 
   it("el interés no pagado NO genera interés: cada quincena cobra solo sobre el capital", () => {
-    const s = computeLoan(base, "2026-01-29");
+    const s = computeLoan(base, "2026-01-31");
     expect(s.periods.filter((p) => p.accrued).map((p) => [p.base, p.interest])).toEqual([
       [1000, 100],
       [1000, 100],
@@ -148,18 +189,18 @@ describe("abonos: primero el interés, lo que sobra al capital", () => {
       {
         ...base,
         payments: [
-          { id: "b", amount: 50, paid_at: "2026-01-29" },
+          { id: "b", amount: 50, paid_at: "2026-01-31" },
           { id: "a", amount: 150, paid_at: "2026-01-16" },
         ],
       },
-      "2026-01-30",
+      "2026-02-01",
     );
     // quincenas 1 y 2: 100 + 100; a cubre 150 de interés; b cubre los 50 restantes
     expect(s.allocations).toEqual([
       { id: "a", amount: 150, toInterest: 150, toPrincipal: 0, excess: 0, interestOutstanding: 50, principalOutstanding: 1000, totalOwed: 1050 },
       { id: "b", amount: 50, toInterest: 50, toPrincipal: 0, excess: 0, interestOutstanding: 0, principalOutstanding: 1000, totalOwed: 1000 },
     ]);
-    // quincena 3 (desde el 29) aún no vence
+    // quincena 3 (desde el 31) aún no vence
     expect(s.interestOutstanding).toBe(100);
     expect(s.status).toBe("active");
   });
@@ -243,7 +284,7 @@ describe("desglose por abono", () => {
   });
 
   it("abono de 300 el 1 de febrero, después de que Q3 cobró 95: cubre 185 de interés y 115 de capital", () => {
-    expect(s.periods[2]).toMatchObject({ number: 3, start: "2026-01-29", base: 950, interest: 95 });
+    expect(s.periods[2]).toMatchObject({ number: 3, start: "2026-01-31", base: 950, interest: 95 });
     expect(byId.get("p300")).toEqual({
       id: "p300",
       amount: 300,
@@ -305,8 +346,8 @@ describe("previewPayment", () => {
     const p = at(300);
     expect(p.valid).toBe(true);
     expect(p.allocation).toMatchObject({ toInterest: 185, toPrincipal: 115, interestOutstanding: 0, principalOutstanding: 835, totalOwed: 835 });
-    // el 1 de febrero está en Q3 (29 ene – 12 feb); la siguiente es Q4, que empieza el 12 de febrero
-    expect(p.next).toEqual({ number: 4, start: "2026-02-12", rate: 10, configuredRate: 10, projectedInterest: 83.5 });
+    // el 1 de febrero está en Q3 (31 ene – 15 feb); la siguiente es Q4, que empieza el 15 de febrero
+    expect(p.next).toEqual({ number: 4, start: "2026-02-15", rate: 10, configuredRate: 10, projectedInterest: 83.5 });
   });
 
   it("abono exactamente igual a la deuda total: válido y deja todo en 0", () => {
@@ -332,7 +373,7 @@ describe("previewPayment", () => {
 
   it("vista previa con una tasa siguiente distinta", () => {
     const p = at(300, 25);
-    expect(p.next).toEqual({ number: 4, start: "2026-02-12", rate: 25, configuredRate: 10, projectedInterest: 208.75 });
+    expect(p.next).toEqual({ number: 4, start: "2026-02-15", rate: 25, configuredRate: 10, projectedInterest: 208.75 });
   });
 
   it("usa la tasa configurada del periodo siguiente si existe", () => {
@@ -386,7 +427,7 @@ describe("estados", () => {
 
 describe("interés acumulado por periodo", () => {
   it("suma el interés generado hasta cada quincena, con tasas distintas", () => {
-    const s = computeLoan({ ...base, rates: [{ period_number: 2, rate: 20 }] }, "2026-01-29");
+    const s = computeLoan({ ...base, rates: [{ period_number: 2, rate: 20 }] }, "2026-01-31");
     expect(s.periods.map((p) => p.interestAccumulated)).toEqual([100, 300, 400]);
   });
 

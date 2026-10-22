@@ -33,7 +33,8 @@ function periodAt(loan: LoanInput, day: string): { n: number; isCutDay: boolean 
 // Fecha dentro de `count` periodos a partir de `day`.
 function periodsFrom(day: string, frequency: Frequency, count: number): string {
   if (frequency === "weekly") return addDays(day, 7 * count);
-  if (frequency === "biweekly") return addDays(day, 14 * count);
+  // Una quincena es medio mes: dos quincenas son un mes y la sobrante suma 15 días.
+  if (frequency === "biweekly") return addDays(addMonths(day, Math.floor(count / 2)), 15 * (count % 2));
   return addMonths(day, count);
 }
 
@@ -53,7 +54,14 @@ export type AssistantContext = {
 
 export type AssistantReply = {
   text: string;
-  table?: { headers: string[]; rows: string[][] };
+  table?: {
+    headers: string[];
+    rows: string[][];
+    /** Columnas que se ven en celular; las demás aparecen desde pantallas medianas. */
+    phone?: number[];
+    /** Columnas que solo se ven en celular (resumen de las ocultas). */
+    phoneOnly?: number[];
+  };
 };
 
 // ---------------------------------------------------------------------------
@@ -497,7 +505,7 @@ function payoffReply(ctx: AssistantContext, loan: LoanInput, date: string): Assi
 function projectionTable(ctx: AssistantContext, loan: LoanInput, proj: Projection) {
   const m = money(ctx);
   return {
-    headers: ["#", "Vence", "Tasa", "Interés cobrado", "Abono", "A interés", "A capital", "Capital", "Interés pend."],
+    headers: ["#", "Vence", "Tasa", "Interés cobrado", "Abono", "A interés", "A capital", "Capital", "Interés pend.", "Abono / Saldo"],
     rows: proj.rows.map((r) => [
       String(r.number),
       formatDate(r.end),
@@ -508,7 +516,10 @@ function projectionTable(ctx: AssistantContext, loan: LoanInput, proj: Projectio
       m(r.toPrincipal),
       m(r.principalAfter),
       m(r.interestAfter),
+      `${m(r.payment)}\n${m(plus(r.principalAfter, r.interestAfter))}`,
     ]),
+    phone: [0, 1, 9],
+    phoneOnly: [9],
   };
 }
 

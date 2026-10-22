@@ -57,11 +57,26 @@ export function addMonths(date: string, months: number): string {
   return formatDate(ty, tm, Math.min(d, lastDay));
 }
 
-// Fecha de corte del periodo n (n >= 1), anclada a la fecha del préstamo.
+// Días mínimos de la primera quincena: si el próximo 15 o fin de mes llega antes, se salta al siguiente.
+export const MIN_FIRST_BIWEEKLY_DAYS = 7;
+
+// Quincenas de calendario: vencen el 15 y el último día de cada mes. Cada corte se numera como
+// 2 × (meses desde el año 0) + 0 para el 15 o + 1 para el último día.
+function semiMonthlyCut(index: number): string {
+  const month = Math.floor(index / 2);
+  const y = Math.floor(month / 12);
+  const m = (month % 12) + 1;
+  return formatDate(y, m, index % 2 === 0 ? 15 : new Date(Date.UTC(y, m, 0)).getUTCDate());
+}
+
+// Fecha de corte del periodo n (n >= 1). Semanal y mensual se anclan a la fecha del préstamo;
+// quincenal vence el 15 y el último día del mes, con una primera quincena de al menos 7 días.
 export function cutDate(start: string, frequency: Frequency, n: number): string {
   if (frequency === "weekly") return addDays(start, 7 * n);
-  if (frequency === "biweekly") return addDays(start, 14 * n);
-  return addMonths(start, n);
+  if (frequency === "monthly") return addMonths(start, n);
+  const [y, m, d] = parseDate(addDays(start, MIN_FIRST_BIWEEKLY_DAYS));
+  const first = 2 * (y * 12 + m - 1) + (d <= 15 ? 0 : 1);
+  return semiMonthlyCut(first + n - 1);
 }
 
 export type LoanInput = {

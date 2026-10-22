@@ -196,7 +196,7 @@ describe("reglas del usuario (casos concretos)", () => {
   });
 
   it("la quincena siguiente cobra sobre el capital que quedó (170 al 20% = 34)", () => {
-    const s = computeLoan({ ...loan200, payments: pay([70, "2026-10-20"]) }, "2026-10-29");
+    const s = computeLoan({ ...loan200, payments: pay([70, "2026-10-20"]) }, "2026-10-31");
     expect(s.periods.map((p) => [p.base, p.interest])).toEqual([
       [200, 40],
       [170, 34],

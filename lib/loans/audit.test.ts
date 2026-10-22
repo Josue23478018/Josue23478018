@@ -39,7 +39,7 @@ describe("casos del usuario", () => {
   });
 
   it("3. Q3 cobra 95 -> pendiente 185, total 1135", () => {
-    const s = computeLoan(userLoan([pay("a", 150, "2026-01-15"), pay("b", 100, "2026-01-20")]), "2026-01-29");
+    const s = computeLoan(userLoan([pay("a", 150, "2026-01-15"), pay("b", 100, "2026-01-20")]), "2026-01-31");
     expect(s.periods[2].interest).toBe(95);
     expect(s.interestOutstanding).toBe(185);
     expect(s.principalOutstanding).toBe(950);
@@ -203,8 +203,8 @@ describe("préstamo cancelado", () => {
     expect(s.status).toBe("cancelled");
   });
   // Decisión del usuario: la quincena que empieza el mismo día de la cancelación sí se cobra.
-  it("cancelado justo el día que empieza Q3 (01-29): Q3 sí se cobra (300)", () => {
-    const s = computeLoan(loan({ cancelled_at: "2026-01-29" }), "2026-03-01");
+  it("cancelado justo el día que empieza Q3 (01-31): Q3 sí se cobra (300)", () => {
+    const s = computeLoan(loan({ cancelled_at: "2026-01-31" }), "2026-03-01");
     expect(s.interestOutstanding).toBe(300);
     expect(s.status).toBe("cancelled");
   });

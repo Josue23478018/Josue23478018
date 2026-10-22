@@ -70,8 +70,8 @@ describe("si abona X", () => {
     expect(text).toContain("USD 240.00");
   });
 
-  it("abono el día del corte (29/10) pertenece a la quincena 1: 40 interés + 30 capital", () => {
-    const { text } = ask("si abona 70 el 29/10/2026", ctx);
+  it("abono el día del corte (31/10) pertenece a la quincena 1: 40 interés + 30 capital", () => {
+    const { text } = ask("si abona 70 el 31/10/2026", ctx);
     expect(text).toContain("A interés: USD 40.00");
     expect(text).toContain("Capital pendiente: USD 170.00");
   });
@@ -113,17 +113,17 @@ describe("proyección y tiempo para pagar", () => {
     const { text, table } = ask("Si abona 70 cada quincena, ¿cómo quedaría en 4 quincenas?", ctx);
     expect(table!.rows.map((r) => [r[1], r[3], r[5], r[6], r[7]])).toEqual([
       // Vence, interés cobrado, a interés, a capital, capital
-      ["29 oct 2026", "USD 40.00", "USD 40.00", "USD 30.00", "USD 170.00"],
-      ["12 nov 2026", "USD 34.00", "USD 34.00", "USD 36.00", "USD 134.00"],
-      ["26 nov 2026", "USD 26.80", "USD 26.80", "USD 43.20", "USD 90.80"],
-      ["10 dic 2026", "USD 18.16", "USD 18.16", "USD 51.84", "USD 38.96"],
+      ["31 oct 2026", "USD 40.00", "USD 40.00", "USD 30.00", "USD 170.00"],
+      ["15 nov 2026", "USD 34.00", "USD 34.00", "USD 36.00", "USD 134.00"],
+      ["30 nov 2026", "USD 26.80", "USD 26.80", "USD 43.20", "USD 90.80"],
+      ["15 dic 2026", "USD 18.16", "USD 18.16", "USD 51.84", "USD 38.96"],
     ]);
     expect(text).toContain("capital USD 38.96, interés pendiente USD 0.00");
   });
 
-  it("¿En cuántas quincenas termina abonando 70? → 5, el 24 dic; total 326.75 (126.75 de interés)", () => {
+  it("¿En cuántas quincenas termina abonando 70? → 5, el 31 dic; total 326.75 (126.75 de interés)", () => {
     const { text } = ask("¿En cuántas quincenas termina si abona 70 cada quincena?", ctx);
-    expect(text).toContain("en 5 quincenas, el 24 dic 2026");
+    expect(text).toContain("en 5 quincenas, el 31 dic 2026");
     expect(text).toContain("Total que pagaría desde hoy: USD 326.75");
     expect(text).toContain("De eso, interés: USD 126.75");
     expect(text).toContain("El último abono sería de USD 46.75");
@@ -148,10 +148,10 @@ describe("proyección y tiempo para pagar", () => {
 describe("préstamos hipotéticos", () => {
   const free: AssistantContext = { loan: null, currency: "USD", today: "2026-10-21" };
 
-  it("500 al 10% quincenal, abona 100 cada quincena → 8 quincenas, termina el 10 feb 2027, interés 228.22", () => {
+  it("500 al 10% quincenal, abona 100 cada quincena → 8 quincenas, termina el 15 feb 2027, interés 228.22", () => {
     const { text } = ask("Si presto 500 al 10% quincenal y me abona 100 cada quincena, ¿en cuántas quincenas termina?", free);
     expect(text).toContain("La primera quincena cobra USD 50.00");
-    expect(text).toContain("en 8 quincenas, el 10 feb 2027");
+    expect(text).toContain("en 8 quincenas, el 15 feb 2027");
     expect(text).toContain("De eso, interés: USD 228.22");
     expect(text).toContain("El último abono sería de USD 28.22");
   });
