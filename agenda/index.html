@@ -203,7 +203,6 @@
       <button class="tab" role="tab" data-view="semana" aria-selected="true">Semana</button>
       <button class="tab" role="tab" data-view="anio" aria-selected="false">Año</button>
       <button class="tab" role="tab" data-view="historial" aria-selected="false">Cambios</button>
-      <button class="tab" role="tab" data-view="familia" aria-selected="false">Familia</button>
     </nav>
   </div>
 </header>
@@ -238,11 +237,6 @@
     <button class="btn ghost" id="moreLog" style="width:100%" hidden>Ver más</button>
   </section>
 
-  <section id="v-familia" hidden>
-    <div class="members" id="members"></div>
-    <button class="btn primary" id="addMember" style="width:100%">+ Agregar persona</button>
-    <p class="note">La agenda está abierta: cualquiera que tenga el enlace puede ver, agregar, cambiar o borrar. Por eso cada cambio queda guardado en <b>Cambios</b> con el nombre de quien lo hizo.</p>
-  </section>
 </main>
 
 <button class="fab" id="fab" hidden><span>+</span> Agendar</button>
@@ -382,7 +376,6 @@ async function refresh() {
     if (state.view === "semana") { await loadWeek(); renderWeek(); }
     if (state.view === "anio") { await loadYear(); renderYear(); }
     if (state.view === "historial") await renderLog();
-    if (state.view === "familia") renderMembers();
     renderFilters();
     $("#loading").hidden = true;
   } catch (e) {
@@ -395,7 +388,7 @@ async function refresh() {
 function renderFilters() {
   const html = [`<button class="chip" data-f="todos" aria-pressed="${state.filter === "todos"}">👨‍👩‍👧‍👦 Todos</button>`]
     .concat(state.miembros.map((m) =>
-      `<button class="chip" data-f="${m.id}" aria-pressed="${state.filter === m.id}"><span class="dot" style="background:${m.color}"></span>${esc(m.emoji)} ${esc(m.nombre)}</button>`))
+      `<button class="chip" data-f="${m.id}" aria-pressed="${state.filter === m.id}"><span class="dot" style="background:${m.color}"></span>${esc(m.nombre)}</button>`))
     .join("");
   $("#filters").innerHTML = html;
   $("#filters2").innerHTML = html;
@@ -410,7 +403,7 @@ function eventHtml(e) {
     <button class="check${e.hecho ? " on" : ""}" data-toggle="${e.id}" aria-label="${e.hecho ? "Marcar pendiente" : "Marcar hecho"}">${e.hecho ? "✓" : ""}</button>
     <button class="evbody" data-edit="${e.id}">
       <div class="evtitle">${esc(e.titulo)}</div>
-      <div class="evmeta">${m ? `<span>${esc(m.emoji)} ${esc(m.nombre)}</span>` : "<span>Toda la familia</span>"}${hora ? `<span>${hora}</span>` : ""}</div>
+      <div class="evmeta">${m ? `<span><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${m.color}"></span> ${esc(m.nombre)}</span>` : "<span>Toda la familia</span>"}${hora ? `<span>${hora}</span>` : ""}</div>
       ${e.notas ? `<div class="evnotes">${esc(e.notas)}</div>` : ""}
     </button>
   </div>`;
@@ -525,7 +518,7 @@ function renderMembers() {
 function setView(v) {
   state.view = v;
   document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === v)));
-  for (const id of ["semana", "anio", "historial", "familia"]) $("#v-" + id).hidden = id !== v;
+  for (const id of ["semana", "anio", "historial"]) $("#v-" + id).hidden = id !== v;
   $("#fab").hidden = !(v === "semana" || v === "anio");
   refresh();
 }
@@ -538,7 +531,7 @@ function renderMe() {
 function whoButtons(container, selected, includeAll) {
   const opts = includeAll ? [{ id: "", nombre: "Toda la familia", emoji: "👨‍👩‍👧‍👦", color: "#94a3b8" }] : [];
   container.innerHTML = opts.concat(state.miembros).map((m) =>
-    `<button type="button" class="chip" data-id="${m.id}" aria-pressed="${m.id === selected}"><span class="dot" style="background:${m.color}"></span>${esc(m.emoji)} ${esc(m.nombre)}</button>`).join("");
+    `<button type="button" class="chip" data-id="${m.id}" aria-pressed="${m.id === selected}"><span class="dot" style="background:${m.color}"></span>${m.id ? "" : esc(m.emoji) + " "}${esc(m.nombre)}</button>`).join("");
   container.dataset.value = selected;
 }
 
@@ -552,7 +545,7 @@ function openEvent(ev, fecha) {
   f.hora_inicio.value = hhmm(ev?.hora_inicio);
   f.hora_fin.value = hhmm(ev?.hora_fin);
   f.notas.value = ev?.notas || "";
-  const preset = ev ? ev.miembro_id || "" : state.filter !== "todos" ? state.filter : "";
+  const preset = ev ? ev.miembro_id || "" : state.filter !== "todos" ? state.filter : (myMember()?.id || "");
   whoButtons($("#evWho"), preset, true);
   $("#evDelete").hidden = !ev;
   $("#evDialog").showModal();
@@ -689,7 +682,7 @@ function openMe() {
   const f = $("#meForm");
   f.reset();
   $("#meWho").innerHTML = state.miembros.map((m) =>
-    `<button type="button" class="chip" data-name="${esc(m.nombre)}" aria-pressed="${m.nombre === state.me}">${esc(m.emoji)} ${esc(m.nombre)}</button>`).join("");
+    `<button type="button" class="chip" data-name="${esc(m.nombre)}" aria-pressed="${m.nombre === state.me}"><span class="dot" style="background:${m.color}"></span>${esc(m.nombre)}</button>`).join("");
   f.nombre.value = state.miembros.some((m) => m.nombre === state.me) ? "" : state.me;
   $("#meDialog").showModal();
 }
@@ -704,11 +697,25 @@ $("#meForm").addEventListener("submit", (e) => {
   if (n) setMe(n.slice(0, 40));
   $("#meDialog").close();
 });
-function setMe(n) {
+const sameName = (a, b) => a.trim().toLocaleLowerCase("es") === b.trim().toLocaleLowerCase("es");
+const myMember = () => (state.me ? state.miembros.find((m) => sameName(m.nombre, state.me)) : null);
+
+// Cada nombre que se escribe en "¿Quién eres?" queda como botón arriba (si no existía ya).
+async function ensureMember(n) {
+  if (!n || state.miembros.some((m) => sameName(m.nombre, n))) return;
+  const { error } = await db.from("agenda_miembros").insert({
+    nombre: n, color: COLORS[state.miembros.length % COLORS.length], orden: state.miembros.length, autor: n,
+  });
+  if (error) return fail(error);
+  await refresh();
+}
+
+async function setMe(n) {
   state.me = n;
   store.set("agenda.yo", n);
   renderMe();
   toast(`Hola, ${n} 👋`);
+  await ensureMember(n);
 }
 
 // ---------- Clicks generales ----------
@@ -747,7 +754,6 @@ $("#todayBtn").onclick = () => { state.weekStart = monday(new Date()); refresh()
 $("#prevYear").onclick = () => { state.year--; refresh(); };
 $("#nextYear").onclick = () => { state.year++; refresh(); };
 $("#fab").onclick = () => openEvent(null, state.view === "semana" && iso(state.weekStart) !== iso(monday(new Date())) ? iso(state.weekStart) : todayIso());
-$("#addMember").onclick = () => openMember(null);
 $("#meBtn").onclick = openMe;
 $("#moreLog").onclick = () => { state.logLimit += 40; renderLog(); };
 
@@ -776,7 +782,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) refr
 
 renderMe();
 setView("semana");
-loadMembers().then(() => { if (!state.me) openMe(); }).catch(() => {});
+loadMembers().then(() => (state.me ? ensureMember(state.me) : openMe())).catch(() => {});
 </script>
 </body>
 </html>
